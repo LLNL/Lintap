@@ -1,0 +1,14 @@
+# Ignore the local data dir
+data
+
+# Mac stuff
+**/*log
+**/.DS_Store
+
+# Jupyter and python
+**/.ipynb_checkpoints
+**/__pycache__
+
+# emacs backup files
+*~
+

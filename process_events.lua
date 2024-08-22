@@ -18,26 +18,34 @@ output_path = "./data"
 args = 
 {
   {
-    name = "output_path",
+    name = "output-path",
     description = "Directory to write output files. Default is " .. output_path .. " seconds.",
-    argtype = "str",
+    argtype = "string",
     optional = true
   },
 }
 
 -- Foraker Raw file
-pr=io.open("process_events.tsv", "w")
-pr:write(table.concat({"pid_key","hostname","ospid","tid","parentpid","process_name","args","exe","uid","username","gid","event_time","source_file","source_event"},"\t"))
+pr=io.open(output_path .. "/process_events.tsv", "w")
+pr:write(table.concat({"pid_key","hostname","ospid","tid","parentpid","process_name","args","exe","uid","username","gid","event_time","epoch","source_file","source_event"},"\t"))
 pr:write("\n")
 
 -- TODO: Format as needed for foraker model, which doesn't have threads now.
 -- Threads info as attribute. Used on both Process and Thread
-th=io.open("process_threads.tsv","w")
-th:write(table.concat({"type","tid_key","pid","tid","process_name","event_time","source_file","source_event"},"\t"))
+th=io.open(output_path .. "/process_threads.tsv","w")
+th:write(table.concat({"type","tid_key","pid","tid","process_name","event_time","epoch","source_file","source_event"},"\t"))
 th:write("\n")
 
 hostname=""
 sysdig_file=""
+
+function on_set_arg(name, val)
+  if name == "output-path" then
+    output_path = val
+  end
+  return true
+end
+
 
 -- Initialization callback
 function on_init()
@@ -96,14 +104,14 @@ function on_capture_start()
     -- When equal, its the process.
     if (pi.tid==pi.pid) then
     -- Process events only
-      pr:write(table.concat({getPidKey(pi.pid),hostname, pi.pid,pi.tid,pi.ptid,pi.comm,args,pi.exe,pi.uid,pi.username,pi.gid,0,0,"",sysdig_file,"thread table"},"\t"))
+      pr:write(table.concat({getPidKey(pi.pid),hostname, pi.pid,pi.tid,pi.ptid,pi.comm,args,pi.exe,pi.uid,pi.username,pi.gid,"",0,sysdig_file,"thread table"},"\t"))
       pr:write("\n")
       -- Include the main process thread in the thread table
-      th:write(table.concat({"process",getPidKey(pi.tid),pi.pid,tid,pi.comm,0,0,"",sysdig_file,"thread table"},"\t"))
+      th:write(table.concat({"process",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,sysdig_file,"thread table"},"\t"))
       th:write("\n")
     else
       -- Secondary threads only 
-      th:write(table.concat({"thread",getPidKey(pi.tid),pi.pid,tid,pi.comm,0,0,"",sysdig_file,"thread table"},"\t"))
+      th:write(table.concat({"thread",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,sysdig_file,"thread table"},"\t"))
       th:write("\n")
     end
   end
@@ -118,9 +126,9 @@ function on_event()
   epoch=evt.field(fepoch)
   -- Don't set first seen for procexit.
   if (evt.type~="procexit") then
-    everestTime=os.date("%m/%d/%Y %H:%M:%S",epoch)
+    everest_time=os.date("%m/%d/%Y %H:%M:%S",epoch)
   else 
-    everestTime=""
+    everest_time=""
   end
   evt_dir = evt.field(fdir)
   src = evt_type .. " " .. evt_dir
@@ -129,6 +137,14 @@ function on_event()
   procname=evt.field(fprocname)
   ppid=evt.field(fppid)
   tid=evt.field(ftid)
+  args=evt.field(fargs)
+  -- Yup, args can have embedded returns. Awk in particular seems to like multiline args. Replace with a space.
+  if string.find(args,"\n") then
+    args=string.gsub(args,"\n"," ")
+  end 
+  if string.find(args,"\t") then
+    args=string.gsub(args,"\t"," ")
+  end 
   -- User values
   user=evt.field(fuser)
   if user == nil then
@@ -150,13 +166,13 @@ function on_event()
     print("Event: " .. src)
   else
     if (tid==pid) then
-      pr:write(table.concat({getPidKey(pid),hostname, pid,tid,ppid,procname,evt.field(fargs),"",evt.field(fuid),user,evt.field(fgid),time,epoch,everest_time,sysdig_file,src},"\t"))
+      pr:write(table.concat({getPidKey(pid),hostname, pid,tid,ppid,procname,args,"",evt.field(fuid),user,evt.field(fgid),everest_time,epoch,sysdig_file,src},"\t"))
       pr:write("\n")
   
-      th:write(table.concat({"process",getPidKey(tid),pid,tid,procname,time,epoch,everest_time,sysdig_file,src},"\t"))
+      th:write(table.concat({"process",getPidKey(tid),pid,tid,procname,everest_time,epoch,sysdig_file,src},"\t"))
       th:write("\n")
     else
-      th:write(table.concat({"thread",getPidKey(tid),pid,tid,procname,time,epoch,everest_time,sysdig_file,src},"\t"))
+      th:write(table.concat({"thread",getPidKey(tid),pid,tid,procname,everest_time,epoch,sysdig_file,src},"\t"))
       th:write("\n")
     end
   end

@@ -9,7 +9,7 @@ datapath=${1:-data}
 dataset=${2:-lintap}
 scapdir="$datapath/$dataset/scap/"
 scapfile="$scapdir/$hostname-$timestamp.scap"
-lintappath="$datapath/$dataset/raw_sensor"
+lintappath="$datapath/$dataset"
 mkdir -p $scapdir
 
 echo "Writing SCAP files to:   $scapfile"

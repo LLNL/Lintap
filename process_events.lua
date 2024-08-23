@@ -80,8 +80,6 @@ end
 
 -- Initialization callback
 function on_init()
-  -- Open files for writing
-  open_files(output_path, hostname)
 	-- Request the fields
 	ftime = chisel.request_field("evt.time")
   frawtime = chisel.request_field("evt.rawtime")
@@ -117,7 +115,9 @@ function on_capture_start()
     sysdig_file=hostname .. " live"
   end
 
-  print("Hostname: " .. hostname .. "Sysdig source: " .. sysdig_file)
+  print("Hostname: " .. hostname .. "  Sysdig source: " .. sysdig_file)
+  -- Open files for writing
+  open_files(output_path, hostname)
 
   --  existing_processes = sysdig.get_thread_table(sysdig.get_filter())
   -- Get all processes/threads that exist when starting

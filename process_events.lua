@@ -11,8 +11,11 @@ category = "Foraker";
 
 require "common"
 
--- Argument defaults
-output_path = "./data"
+-- Argument defaults and globals
+local output_path = "./data"
+
+hostname=""
+sysdig_file=""
 
 -- Chisel argument list
 args = 
@@ -25,23 +28,51 @@ args =
   },
 }
 
--- Foraker Raw file
-pr=io.open(output_path .. "/process_events.tsv", "w")
-pr:write(table.concat({"pid_key","hostname","ospid","tid","parentpid","process_name","args","exe","uid","username","gid","event_time","epoch","source_file","source_event"},"\t"))
-pr:write("\n")
+local function create_directory(dir_name)
+  local success, err = os.execute("mkdir -p " .. dir_name)
+  if not success then
+      print("Error creating directory: " .. err)
+  else
+      print("Directory created successfully: " .. dir_name)
+  end
+end
 
--- TODO: Format as needed for foraker model, which doesn't have threads now.
--- Threads info as attribute. Used on both Process and Thread
-th=io.open(output_path .. "/process_threads.tsv","w")
-th:write(table.concat({"type","tid_key","pid","tid","process_name","event_time","epoch","source_file","source_event"},"\t"))
-th:write("\n")
+function set_datatime()
+  -- Set times used for data file naming
+  batch_epoch=os.time()
+  local cur_hour=batch_epoch - (batch_epoch %3600)
+  next_batch_epoch=cur_hour+3600
+  daypk=os.date("%Y%m%d")
+  return true
+end
 
-hostname=""
-sysdig_file=""
+function open_files(path, hostname)
+  --data/acme/raw_sensor/daypk=YYYYMMDD/[hostname]+[event type]+[epoch].tsv
+  set_datatime()
+  fullpath=string.format("%s/raw_sensor/raw_process/daypk=%s", path, daypk)
+  prfilename=string.format("%s/%s+raw_process+%s.tsv", fullpath, hostname, batch_epoch)
+  create_directory(fullpath)
+  pr=io.open(prfilename, "w")
+  pr:write(table.concat({"pid_key","hostname","ospid","tid","parentpid","process_name","args","exe","uid","username","gid","event_time","epoch","source_file","source_event"},"\t"))
+  pr:write("\n")
+  print("Writing to: " .. prfilename)
+
+  -- TODO: Format as needed for foraker model, which doesn't have threads now.
+  -- Threads info as attribute. Used on both Process and Thread
+  fullpath=string.format("%s/raw_sensor/raw_threads/daypk=%s", path, daypk)
+  thfilename=string.format("%s/%s+raw_threads+%s.tsv", fullpath, hostname, batch_epoch)
+  create_directory(fullpath)
+  th=io.open(thfilename,"w")
+  th:write(table.concat({"type","tid_key","pid","tid","process_name","event_time","epoch","source_file","source_event"},"\t"))
+  th:write("\n")
+  print("Writing to: " .. thfilename)
+  return true
+end
 
 function on_set_arg(name, val)
   if name == "output-path" then
     output_path = val
+    print(val)
   end
   return true
 end
@@ -49,6 +80,8 @@ end
 
 -- Initialization callback
 function on_init()
+  -- Open files for writing
+  open_files(output_path, hostname)
 	-- Request the fields
 	ftime = chisel.request_field("evt.time")
   frawtime = chisel.request_field("evt.rawtime")
@@ -83,6 +116,8 @@ function on_capture_start()
   if sysdig_file=="" then 
     sysdig_file=hostname .. " live"
   end
+
+  print("Hostname: " .. hostname .. "Sysdig source: " .. sysdig_file)
 
   --  existing_processes = sysdig.get_thread_table(sysdig.get_filter())
   -- Get all processes/threads that exist when starting
@@ -174,6 +209,12 @@ function on_event()
     group="null"
   end
   
+  if (os.time() > next_batch_epoch) then
+    -- Rotate TSV files
+    close_files()
+    open_files(output_path, hostname)
+  end
+
   if (tid==pid) then
     pr:write(table.concat({getPidKey(pid),hostname, pid,tid,ppid,procname,args,"",evt.field(fuid),user,evt.field(fgid),everest_time,epoch,sysdig_file,src},"\t"))
     pr:write("\n")
@@ -185,6 +226,11 @@ function on_event()
     th:write("\n")
   end
 	return true
+end
+
+function close_files()
+  pr:close()
+  th:close()
 end
 
 function on_capture_end()

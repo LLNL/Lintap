@@ -121,6 +121,7 @@ end
 
 -- Event parsing callback
 function on_event()
+
   evt_type = evt.field(ftype)
 	time = evt.field(ftime)
   epoch=evt.field(fepoch)
@@ -138,13 +139,31 @@ function on_event()
   ppid=evt.field(fppid)
   tid=evt.field(ftid)
   args=evt.field(fargs)
+
+  -- Validation
+  if tonumber(pid) == nil then
+    -- Not a number
+    print("Nil Pid!")
+    print("Event: " .. src)
+    return true
+  end
+  -- Foraker output
+  if ppid == nil then
+    print("Nil ppid on pid: " .. pid)
+    print("Event: " .. src)
+    return true
+  end
+
+
   -- Yup, args can have embedded returns. Awk in particular seems to like multiline args. Replace with a space.
-  if string.find(args,"\n") then
-    args=string.gsub(args,"\n"," ")
-  end 
-  if string.find(args,"\t") then
-    args=string.gsub(args,"\t"," ")
-  end 
+  if args ~= null then
+    if string.find(args,"\n") then
+      args=string.gsub(args,"\n"," ")
+    end 
+    if string.find(args,"\t") then
+      args=string.gsub(args,"\t"," ")
+    end
+  end
   -- User values
   user=evt.field(fuser)
   if user == nil then
@@ -155,26 +174,15 @@ function on_event()
     group="null"
   end
   
-  if tonumber(pid) == nil then
-    -- Not a number
-    print("Nil Pid: " .. pid)
-    print("Event: " .. evt)
-  end
-  -- Foraker output
-  if ppid == nil then
-    print("Nil ppid on pid: " .. pid)
-    print("Event: " .. src)
+  if (tid==pid) then
+    pr:write(table.concat({getPidKey(pid),hostname, pid,tid,ppid,procname,args,"",evt.field(fuid),user,evt.field(fgid),everest_time,epoch,sysdig_file,src},"\t"))
+    pr:write("\n")
+
+    th:write(table.concat({"process",getPidKey(tid),pid,tid,procname,everest_time,epoch,sysdig_file,src},"\t"))
+    th:write("\n")
   else
-    if (tid==pid) then
-      pr:write(table.concat({getPidKey(pid),hostname, pid,tid,ppid,procname,args,"",evt.field(fuid),user,evt.field(fgid),everest_time,epoch,sysdig_file,src},"\t"))
-      pr:write("\n")
-  
-      th:write(table.concat({"process",getPidKey(tid),pid,tid,procname,everest_time,epoch,sysdig_file,src},"\t"))
-      th:write("\n")
-    else
-      th:write(table.concat({"thread",getPidKey(tid),pid,tid,procname,everest_time,epoch,sysdig_file,src},"\t"))
-      th:write("\n")
-    end
+    th:write(table.concat({"thread",getPidKey(tid),pid,tid,procname,everest_time,epoch,sysdig_file,src},"\t"))
+    th:write("\n")
   end
 	return true
 end

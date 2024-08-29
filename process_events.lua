@@ -49,8 +49,8 @@ end
 function set_datatime()
   -- Set times used for data file naming
   local batch_epoch=os.time()
-  local cur_hour=batch_epoch - (batch_epoch %5)
-  next_batch_epoch=cur_hour+5
+  local cur_hour=batch_epoch - (batch_epoch % 30)
+  next_batch_epoch=cur_hour+30  
   return true
 end
 
@@ -207,13 +207,12 @@ function on_event()
 end
 
 function close_files()
-  prdf.handle:close()
-  ptdf.handle:close()
+  datafile.close(prdf)
+  datafile.close(ptdf)
 end
 
 function on_capture_end()
-  prdf.handle:close()
-  ptdf.handle:close()
+  close_files()
 end
 
 -- TODO Create a function library for this and other key functions

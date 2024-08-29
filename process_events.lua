@@ -10,6 +10,7 @@ short_description = "Extract process creation (execve) and termination (procexit
 category = "Foraker";
 
 require "common"
+datafile = require("datafile")
 
 -- Argument defaults and globals
 local output_path = "./data"
@@ -28,44 +29,12 @@ args =
   },
 }
 
-local function create_directory(dir_name)
-  local success, err = os.execute("mkdir -p " .. dir_name)
-  if not success then
-      print("Error creating directory: " .. err)
-  else
-      print("Directory created successfully: " .. dir_name)
-  end
-end
-
-function set_datatime()
-  -- Set times used for data file naming
-  batch_epoch=os.time()
-  local cur_hour=batch_epoch - (batch_epoch %3600)
-  next_batch_epoch=cur_hour+3600
-  daypk=os.date("%Y%m%d")
-  return true
-end
 
 function open_files(path, hostname)
-  --data/acme/raw_sensor/daypk=YYYYMMDD/[hostname]+[event type]+[epoch].tsv
-  set_datatime()
-  fullpath=string.format("%s/raw_sensor/raw_process/daypk=%s", path, daypk)
-  prfilename=string.format("%s/%s+raw_process+%s.tsv", fullpath, hostname, batch_epoch)
-  create_directory(fullpath)
-  pr=io.open(prfilename, "w")
-  pr:write(table.concat({"pid_key","hostname","ospid","tid","parentpid","process_name","args","exe","uid","username","gid","event_time","epoch","source_file","source_event"},"\t"))
-  pr:write("\n")
-  print("Writing to: " .. prfilename)
-
-  -- TODO: Format as needed for foraker model, which doesn't have threads now.
-  -- Threads info as attribute. Used on both Process and Thread
-  fullpath=string.format("%s/raw_sensor/raw_threads/daypk=%s", path, daypk)
-  thfilename=string.format("%s/%s+raw_threads+%s.tsv", fullpath, hostname, batch_epoch)
-  create_directory(fullpath)
-  th=io.open(thfilename,"w")
-  th:write(table.concat({"type","tid_key","pid","tid","process_name","event_time","epoch","source_file","source_event"},"\t"))
-  th:write("\n")
-  print("Writing to: " .. thfilename)
+  rp_cols = table.concat({"pid_key","hostname","ospid","tid","parentpid","process_name","args","exe","uid","username","gid","event_time","epoch","source_file","source_event"},"\t")
+  prdf = datafile.open(path, hostname, "raw_process", rp_cols)
+  rt_cols = table.concat({"type","tid_key","pid","tid","process_name","event_time","epoch","source_file","source_event"},"\t")
+  ptdf = datafile.open(path, hostname, "raw_thread", rt_cols)
   return true
 end
 
@@ -77,9 +46,18 @@ function on_set_arg(name, val)
   return true
 end
 
+function set_datatime()
+  -- Set times used for data file naming
+  local batch_epoch=os.time()
+  local cur_hour=batch_epoch - (batch_epoch %5)
+  next_batch_epoch=cur_hour+5
+  return true
+end
+
 
 -- Initialization callback
 function on_init()
+  set_datatime()
 	-- Request the fields
 	ftime = chisel.request_field("evt.time")
   frawtime = chisel.request_field("evt.rawtime")
@@ -139,15 +117,15 @@ function on_capture_start()
     -- When equal, its the process.
     if (pi.tid==pi.pid) then
     -- Process events only
-      pr:write(table.concat({getPidKey(pi.pid),hostname, pi.pid,pi.tid,pi.ptid,pi.comm,args,pi.exe,pi.uid,pi.username,pi.gid,"",0,sysdig_file,"thread table"},"\t"))
-      pr:write("\n")
+      prdf.handle:write(table.concat({getPidKey(pi.pid),hostname, pi.pid,pi.tid,pi.ptid,pi.comm,args,pi.exe,pi.uid,pi.username,pi.gid,"",0,sysdig_file,"thread table"},"\t"))
+      prdf.handle:write("\n")
       -- Include the main process thread in the thread table
-      th:write(table.concat({"process",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,sysdig_file,"thread table"},"\t"))
-      th:write("\n")
+      ptdf.handle:write(table.concat({"process",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,sysdig_file,"thread table"},"\t"))
+      ptdf.handle:write("\n")
     else
       -- Secondary threads only 
-      th:write(table.concat({"thread",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,sysdig_file,"thread table"},"\t"))
-      th:write("\n")
+      ptdf.handle:write(table.concat({"thread",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,sysdig_file,"thread table"},"\t"))
+      ptdf.handle:write("\n")
     end
   end
 
@@ -216,26 +194,26 @@ function on_event()
   end
 
   if (tid==pid) then
-    pr:write(table.concat({getPidKey(pid),hostname, pid,tid,ppid,procname,args,"",evt.field(fuid),user,evt.field(fgid),everest_time,epoch,sysdig_file,src},"\t"))
-    pr:write("\n")
+    prdf.handle:write(table.concat({getPidKey(pid),hostname, pid,tid,ppid,procname,args,"",evt.field(fuid),user,evt.field(fgid),everest_time,epoch,sysdig_file,src},"\t"))
+    prdf.handle:write("\n")
 
-    th:write(table.concat({"process",getPidKey(tid),pid,tid,procname,everest_time,epoch,sysdig_file,src},"\t"))
-    th:write("\n")
+    ptdf.handle:write(table.concat({"process",getPidKey(tid),pid,tid,procname,everest_time,epoch,sysdig_file,src},"\t"))
+    ptdf.handle:write("\n")
   else
-    th:write(table.concat({"thread",getPidKey(tid),pid,tid,procname,everest_time,epoch,sysdig_file,src},"\t"))
-    th:write("\n")
+    ptdf.handle:write(table.concat({"thread",getPidKey(tid),pid,tid,procname,everest_time,epoch,sysdig_file,src},"\t"))
+    ptdf.handle:write("\n")
   end
 	return true
 end
 
 function close_files()
-  pr:close()
-  th:close()
+  prdf.handle:close()
+  ptdf.handle:close()
 end
 
 function on_capture_end()
-  pr:close()
-  th:close()
+  prdf.handle:close()
+  ptdf.handle:close()
 end
 
 -- TODO Create a function library for this and other key functions

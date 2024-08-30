@@ -7,6 +7,9 @@ local function set_datatime()
   -- Set times used for data file naming
   epoch=os.time()
   daypk=os.date("%Y%m%d")
+  local cur_hour=epoch - (epoch % 30)
+  next_batch_epoch = cur_hour+30
+  print("Set next batch to: " .. next_batch_epoch)
   return true
 end
 
@@ -56,9 +59,9 @@ function datafile.rename(df)
   -- Rename from ".active" basename
   local success, err = os.execute(string.format("mv %s %s", datafile.activename(df), datafile.filename(df)))
   if not success then
-      print("Rename failed: %s\n\t%s",datafile.activename(df), err)
+      print(string.format("Rename failed: %s\n\t%s",datafile.activename(df), err))
   else
-      print("Renamed: %s ", datafile.activename(df))
+      print(string.format("Renamed: %s ", datafile.activename(df)))
   end
   return true
 end

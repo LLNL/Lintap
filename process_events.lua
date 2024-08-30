@@ -46,18 +46,9 @@ function on_set_arg(name, val)
   return true
 end
 
-function set_datatime()
-  -- Set times used for data file naming
-  local batch_epoch=os.time()
-  local cur_hour=batch_epoch - (batch_epoch % 30)
-  next_batch_epoch=cur_hour+30  
-  return true
-end
-
 
 -- Initialization callback
 function on_init()
-  set_datatime()
 	-- Request the fields
 	ftime = chisel.request_field("evt.time")
   frawtime = chisel.request_field("evt.rawtime")
@@ -192,7 +183,7 @@ function on_event()
     close_files()
     open_files(output_path, hostname)
   end
-
+  
   if (tid==pid) then
     prdf.handle:write(table.concat({getPidKey(pid),hostname, pid,tid,ppid,procname,args,"",evt.field(fuid),user,evt.field(fgid),everest_time,epoch,sysdig_file,src},"\t"))
     prdf.handle:write("\n")

@@ -29,7 +29,6 @@ args =
 function on_set_arg(name, val)
   if name == "output-path" then
     output_path = val
-    print(val)
   end
   return true
 end
@@ -73,13 +72,10 @@ end
 function on_capture_start()
   -- Get hostname
   hostname=sysdig.get_machine_info().hostname
-
   sysdig_file=sysdig.get_evtsource_name()
   if sysdig_file=="" then 
     sysdig_file=hostname .. " live"
   end
-
-  print("Hostname: " .. hostname .. "  Sysdig source: " .. sysdig_file)
   -- Open files for writing
   open_files(output_path, hostname)
 

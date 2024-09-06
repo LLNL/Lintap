@@ -15,9 +15,6 @@ datafile = require("datafile")
 -- Argument defaults and globals
 local output_path = "./data"
 
-hostname=""
-sysdig_file=""
-
 -- Chisel argument list
 args = 
 {
@@ -29,15 +26,6 @@ args =
   },
 }
 
-
-function open_files(path, hostname)
-  rp_cols = table.concat({"pid_key","hostname","ospid","tid","parentpid","process_name","args","exe","uid","username","gid","event_time","epoch","source_file","source_event"},"\t")
-  prdf = datafile.open(path, hostname, "raw_process", rp_cols)
-  rt_cols = table.concat({"type","tid_key","pid","tid","process_name","event_time","epoch","source_file","source_event"},"\t")
-  ptdf = datafile.open(path, hostname, "raw_thread", rt_cols)
-  return true
-end
-
 function on_set_arg(name, val)
   if name == "output-path" then
     output_path = val
@@ -46,6 +34,13 @@ function on_set_arg(name, val)
   return true
 end
 
+function open_files(path, hostname)
+  rp_cols = table.concat({"pid_key","hostname","ospid","tid","parentpid","process_name","args","exe","uid","username","gid","event_time","epoch","source_file","source_event"},"\t")
+  prdf = datafile.open(path, hostname, "raw_process", rp_cols)
+  rt_cols = table.concat({"type","tid_key","pid","tid","process_name","event_time","epoch","source_file","source_event"},"\t")
+  ptdf = datafile.open(path, hostname, "raw_thread", rt_cols)
+  return true
+end
 
 -- Initialization callback
 function on_init()

@@ -9,7 +9,7 @@ local function set_datatime()
   daypk=os.date("%Y%m%d")
   local cur_hour=epoch - (epoch % 30)
   next_batch_epoch = cur_hour+30
-  print("Set next batch to: " .. next_batch_epoch)
+  print(string.format("Set next batch to: %s (%s)",os.date("%m/%d/%Y %H:%M:%S",next_batch_epoch), next_batch_epoch))
   return true
 end
 

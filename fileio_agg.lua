@@ -16,6 +16,9 @@ datafile = require("datafile")
 local interval=10
 local output_path = "./data"
 
+-- Global var for Connection Summaries for an interval
+fileActivity = {}
+
 -- Chisel argument list
 args = 
 {
@@ -39,7 +42,6 @@ function on_set_arg(name, val)
   end
   if name == "output-path" then
     output_path = val
-    print(val)
   end
   return true
 end
@@ -59,9 +61,6 @@ function open_files(path, hostname)
   return true
 end
 
-
--- Global var for Connection Summaries for an interval
-fileActivity = {}
 
 -- Initialization callback
 function on_init()
@@ -88,7 +87,6 @@ end
 function on_capture_start()
   -- Get hostname
   hostname=sysdig.get_machine_info().hostname
-  
   sysdig_file=sysdig.get_evtsource_name()
   if sysdig_file=="" then 
     sysdig_file=hostname .. " live"
@@ -99,7 +97,6 @@ function on_capture_start()
 end
 
 -- Event parsing callback
--- Note: no need to worry about adding hostname to PID here becasuse this only processes data from a single host at a time
 function on_event()
   local evt_type = evt.field(ftype)
   local filename=evt.field(fname)
@@ -109,7 +106,6 @@ function on_event()
   local keyObject = {pid,tid,evt.field(fprocname),evt_type,filename}
   -- Danger! Filenames could have an embedded colon. I guess a process_name might also...
   local keyId = table.concat(keyObject,":")
-
   local time = evt.field(ftime)
   local rawtime=evt.field(frawtime)
   local buflen=evt.field(fbuflen)
@@ -126,24 +122,21 @@ function on_event()
     cur.bytes=cur.bytes+buflen
   else
     -- new one, add it
-    fileActivity[keyId]={keyIdKey=keyId,count=1,bytes=buflen,firstSeen=time,lastSeen=time,firstSeenNs=rawtime,lastSeenNs=rawtime}
+    fileActivity[keyId]={count=1,bytes=buflen,firstSeen=time,lastSeen=time,firstSeenNs=rawtime,lastSeenNs=rawtime}
   end
-
   return true
 end
 
 function on_interval(delta)
-  print("  interval: " .. ( os.date( "%m/%d/%Y %H:%M:%S" , delta )))
+  print("  File interval: " .. ( os.date( "%m/%d/%Y %H:%M:%S" , delta )))
   writeToCsv()
   -- Empty the fileActivity. This chisel just reports increments.
   fileActivity = {}
-
   if (os.time() > next_batch_epoch) then
     -- Rotate TSV files
     close_files()
     open_files(output_path, hostname)
   end
-
   return true
 end
 
@@ -151,6 +144,7 @@ function on_capture_end(delta)
   print("capture end: " .. ( os.date( "%m/%d/%Y %H:%M:%S" , delta )))
   -- Write the last partial interval
   writeToCsv()
+  close_files()
   return true
 end
 
@@ -173,13 +167,12 @@ function writeToCsv()
     pfdf.handle:write(value.firstSeenNs)
     pfdf.handle:write("\t")
     pfdf.handle:write(value.lastSeenNs)
-    pfdf.handle:write("\n")
+    pfdf.handle:write("\t")
     pfdf.handle:write(sysdig_file)
     pfdf.handle:write("\n")
     i=i+1
   end
-  print("Interval has " .. i .. " rows")
-
+  print("  File interval has " .. i .. " rows")
 end
 
 function close_files()

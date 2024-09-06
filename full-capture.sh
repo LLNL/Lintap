@@ -17,5 +17,5 @@ echo "Writing Lintap files to: $lintappath"
 
 process_filter="((evt.type=execve and evt.dir=<) or (evt.type=clone and evt.dir=>) or (evt.type=vfork and evt.dir=<) or evt.type=procexit) or (fd.type=file and (evt.type=open or evt.type=read or evt.type=write or evt.type=close)) or (fd.l4proto=tcp or fd.l4proto=udp)" 
 file_filter="fd.type=file and (evt.type=open or evt.type=read or evt.type=write or evt.type=close)"
-sysdig -c fileio_agg.lua "10 $lintappath"  -zw $scapfile -s 8 -C 50 -F "($process_filter) or ($file_filter)"
+sysdig -c fileio_agg.lua "10 $lintappath" -c ./process_events.lua $lintappath -zw $scapfile -s 8 -C 50 -F "($process_filter) or ($file_filter)"
 # -c ./process_events.lua $lintappath

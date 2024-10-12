@@ -20,7 +20,11 @@ Proof of concept host-based event sensor for Linux. An attempt to implement Wint
             * Sysdig writes files, rolling based on size. Example name:
             ```data/acme/scap/[hostname]-[epoch].scap[n]```
 
-
+## Post-processing
+* Combine the thousands of tiny TSV files into a single parquet file per day. No other changes are made at this stage, so the TSVs can be tossed.
+```
+copy (from read_csv('/acmedata/lintap/raw_sensor/raw_process/**/*.tsv',timestampformat='%m/%d/%Y %H:%M:%S')) to '/acmedata/testing/raw_process_pk' (format parquet, partition_by (daypk));
+```
 
 # Release
 LLNL-CODE-837816

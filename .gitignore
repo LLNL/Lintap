@@ -12,3 +12,6 @@ data
 # emacs backup files
 *~
 
+# VSCode
+**/.vscode
+

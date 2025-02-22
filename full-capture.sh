@@ -16,7 +16,7 @@ echo "Writing SCAP files to:   $scapfile"
 echo "Writing Lintap files to: $lintappath"
 
 # Filters for events
-process_filter="((evt.type=execve and evt.dir=<) or (evt.type=clone and evt.dir=>) or (evt.type=vfork and evt.dir=<) or evt.type=procexit) or (fd.type=file and (evt.type=open or evt.type=read or evt.type=write or evt.type=close)) or (fd.l4proto=tcp or fd.l4proto=udp)" 
+process_filter="((evt.type=execve and evt.dir=<) or (evt.type=clone and evt.dir=>) or (evt.type=vfork and evt.dir=<) or evt.type=procexit))" 
 file_filter="fd.type=file and (evt.type=open or evt.type=read or evt.type=write or evt.type=close)"
 network_filter="fd.l4proto=tcp or fd.l4proto=udp"
 

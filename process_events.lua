@@ -34,7 +34,7 @@ function on_set_arg(name, val)
 end
 
 function open_files(path, hostname)
-  rp_cols = table.concat({"pid_key","hostname","ospid","tid","parentpid","process_name","args","exe","uid","username","gid","event_time","epoch","source_file","source_event"},"\t")
+  rp_cols = table.concat({"pid_key","hostname","ospid","tid","parentpid","process_name","args","exe","uid","username","gid","event_time","epoch","raw_time","source_file","source_event"},"\t")
   prdf = datafile.open(path, hostname, "raw_process", rp_cols)
   rt_cols = table.concat({"type","tid_key","pid","tid","process_name","event_time","epoch","source_file","source_event"},"\t")
   ptdf = datafile.open(path, hostname, "raw_thread", rt_cols)
@@ -98,15 +98,15 @@ function on_capture_start()
 
     -- When equal, its the process.
     if (pi.tid==pi.pid) then
-    -- Process events only
-      prdf.handle:write(table.concat({getPidKey(pi.pid),hostname, pi.pid,pi.tid,pi.ptid,pi.comm,args,pi.exe,pi.uid,pi.username,pi.gid,"",0,sysdig_file,"thread table"},"\t"))
+    -- Process events only - Note: there are no time fields. 
+      prdf.handle:write(table.concat({getPidKey(pi.pid),hostname, pi.pid,pi.tid,pi.ptid,pi.comm,args,pi.exe,pi.uid,pi.username,pi.gid,"",0,0,sysdig_file,"thread table"},"\t"))
       prdf.handle:write("\n")
       -- Include the main process thread in the thread table
-      ptdf.handle:write(table.concat({"process",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,sysdig_file,"thread table"},"\t"))
+      ptdf.handle:write(table.concat({"process",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,0,sysdig_file,"thread table"},"\t"))
       ptdf.handle:write("\n")
     else
       -- Secondary threads only 
-      ptdf.handle:write(table.concat({"thread",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,sysdig_file,"thread table"},"\t"))
+      ptdf.handle:write(table.concat({"thread",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,0,sysdig_file,"thread table"},"\t"))
       ptdf.handle:write("\n")
     end
   end
@@ -118,7 +118,8 @@ end
 function on_event()
 
   evt_type = evt.field(ftype)
-	time = evt.field(ftime)
+  time = evt.field(ftime)
+  raw_time = evt.field(frawtime)
   epoch=evt.field(fepoch)
   -- Don't set first seen for procexit.
   if (evt.type~="procexit") then
@@ -176,16 +177,16 @@ function on_event()
   end
   
   if (tid==pid) then
-    prdf.handle:write(table.concat({getPidKey(pid),hostname, pid,tid,ppid,procname,args,"",evt.field(fuid),user,evt.field(fgid),everest_time,epoch,sysdig_file,src},"\t"))
+    prdf.handle:write(table.concat({getPidKey(pid),hostname, pid,tid,ppid,procname,args,"",evt.field(fuid),user,evt.field(fgid),everest_time,epoch,raw_time,sysdig_file,src},"\t"))
     prdf.handle:write("\n")
 
-    ptdf.handle:write(table.concat({"process",getPidKey(tid),pid,tid,procname,everest_time,epoch,sysdig_file,src},"\t"))
+    ptdf.handle:write(table.concat({"process",getPidKey(tid),pid,tid,procname,everest_time,epoch,raw_time,sysdig_file,src},"\t"))
     ptdf.handle:write("\n")
   else
-    ptdf.handle:write(table.concat({"thread",getPidKey(tid),pid,tid,procname,everest_time,epoch,sysdig_file,src},"\t"))
+    ptdf.handle:write(table.concat({"thread",getPidKey(tid),pid,tid,procname,everest_time,epoch,raw_time,sysdig_file,src},"\t"))
     ptdf.handle:write("\n")
   end
-	return true
+  return true
 end
 
 function close_files()

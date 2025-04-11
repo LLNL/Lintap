@@ -15,7 +15,9 @@ copy (from read_csv('$1/$2/**/*.tsv',timestampformat='%m/%d/%Y %H:%M:%S')) to '$
 # Process by event type
 for EVENT in raw_process raw_process_conn_incr raw_process_file raw_thread
 do
-    echo `date` $EVENT 
+    echo `date` $EVENT
+    # Subdirs MUST exist
+    mkdir -p $1_pk/$EVENT_pk
     merge_sql=$(merge_sql $1 $EVENT)
     echo ~/apps/duckdb -s "$merge_sql"
 done

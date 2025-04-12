@@ -15,6 +15,7 @@ datafile = require("datafile")
 -- Argument defaults and globals
 local output_path = "./data"
 local hostname = ""
+local hostname = ""
 
 -- Chisel argument list
 args = 
@@ -22,6 +23,12 @@ args =
   {
     name = "output-path",
     description = "Directory to write output files. Default is " .. output_path .. " seconds.",
+    argtype = "string",
+    optional = true
+  },
+  {
+    name = "hostname",
+    description = "Hostname the collect (SCAP) is from. Optional for live collects and required for reading from a SCAP file",
     argtype = "string",
     optional = true
   },
@@ -85,7 +92,11 @@ function on_capture_start()
   -- Get hostname
   -- Note: the get_machine_info() function doesn't return anything when reading from a SCAP file, rather than live, so abort if user didn't pass in an hostname as an argument
   if sysdig.get_machine_info().hostname ~= "" then
+    -- Note: the get_machine_info() function doesn't return anything when reading from a SCAP file, rather than live, so abort if user didn't pass in an hostname as an argument
+  if sysdig.get_machine_info().hostname ~= "" then
     hostname=sysdig.get_machine_info().hostname
+  end
+  
   end
   
   sysdig_file=sysdig.get_evtsource_name()

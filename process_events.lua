@@ -14,6 +14,7 @@ datafile = require("datafile")
 
 -- Argument defaults and globals
 local output_path = "./data"
+local hostname = ""
 
 -- Chisel argument list
 args = 
@@ -24,19 +25,29 @@ args =
     argtype = "string",
     optional = true
   },
+  {
+    name = "hostname",
+    description = "Hostname the collect (SCAP) is from. Optional for live collects and required for reading from a SCAP file",
+    argtype = "string",
+    optional = true
+  },
 }
 
 function on_set_arg(name, val)
+  valid = true
   if name == "output-path" then
     output_path = val
   end
-  return true
+  if name == "hostname" then
+    hostname = val
+  end
+  return valid
 end
 
 function open_files(path, hostname)
-  rp_cols = table.concat({"pid_key","hostname","ospid","tid","parentpid","process_name","args","exe","uid","username","gid","event_time","epoch","raw_time","source_file","source_event"},"\t")
+  rp_cols = table.concat({"pid_key","hostname","ospid","tid","parentpid","process_name","args","exe","uid","username","gid","event_time","raw_time","source_file","source_event"},"\t")
   prdf = datafile.open(path, hostname, "raw_process", rp_cols)
-  rt_cols = table.concat({"type","tid_key","pid","tid","process_name","event_time","epoch","source_file","source_event"},"\t")
+  rt_cols = table.concat({"type","tid_key","pid","tid","process_name","event_time","source_file","source_event"},"\t")
   ptdf = datafile.open(path, hostname, "raw_thread", rt_cols)
   return true
 end
@@ -44,9 +55,10 @@ end
 -- Initialization callback
 function on_init()
 	-- Request the fields
-	ftime = chisel.request_field("evt.time")
+  -- Human readable, with NS. Also parsable by DuckDB.
+	fevttime = chisel.request_field("evt.time.iso8601")
+  -- Epoch with NS fractional precision. As a backup value and sortable when ftime is still just a string.
   frawtime = chisel.request_field("evt.rawtime")
-  fepoch = chisel.request_field("evt.rawtime.s")
 	ftype = chisel.request_field("evt.type")
   fdir = chisel.request_field("evt.dir")
   fprocname = chisel.request_field("proc.name")
@@ -71,7 +83,11 @@ end
   
 function on_capture_start()
   -- Get hostname
-  hostname=sysdig.get_machine_info().hostname
+  -- Note: the get_machine_info() function doesn't return anything when reading from a SCAP file, rather than live, so abort if user didn't pass in an hostname as an argument
+  if sysdig.get_machine_info().hostname ~= "" then
+    hostname=sysdig.get_machine_info().hostname
+  end
+  
   sysdig_file=sysdig.get_evtsource_name()
   if sysdig_file=="" then 
     sysdig_file=hostname .. " live"
@@ -98,15 +114,15 @@ function on_capture_start()
 
     -- When equal, its the process.
     if (pi.tid==pi.pid) then
-    -- Process events only - Note: there are no time fields. 
-      prdf.handle:write(table.concat({getPidKey(pi.pid),hostname, pi.pid,pi.tid,pi.ptid,pi.comm,args,pi.exe,pi.uid,pi.username,pi.gid,"",0,0,sysdig_file,"thread table"},"\t"))
+    -- Process events only - Note: there are no time fields in the thread table.
+      prdf.handle:write(table.concat({getPidKey(pi.pid),hostname, pi.pid,pi.tid,pi.ptid,pi.comm,args,pi.exe,pi.uid,pi.username,pi.gid,"",0,sysdig_file,"thread table"},"\t"))
       prdf.handle:write("\n")
       -- Include the main process thread in the thread table
-      ptdf.handle:write(table.concat({"process",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,0,sysdig_file,"thread table"},"\t"))
+      ptdf.handle:write(table.concat({"process",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,sysdig_file,"thread table"},"\t"))
       ptdf.handle:write("\n")
     else
       -- Secondary threads only 
-      ptdf.handle:write(table.concat({"thread",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,0,sysdig_file,"thread table"},"\t"))
+      ptdf.handle:write(table.concat({"thread",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,sysdig_file,"thread table"},"\t"))
       ptdf.handle:write("\n")
     end
   end
@@ -118,15 +134,8 @@ end
 function on_event()
 
   evt_type = evt.field(ftype)
-  time = evt.field(ftime)
+  evt_time = evt.field(fevttime)
   raw_time = evt.field(frawtime)
-  epoch=evt.field(fepoch)
-  -- Don't set first seen for procexit.
-  if (evt.type~="procexit") then
-    everest_time=os.date("%m/%d/%Y %H:%M:%S",epoch)
-  else 
-    everest_time=""
-  end
   evt_dir = evt.field(fdir)
   src = evt_type .. " " .. evt_dir
   
@@ -177,13 +186,13 @@ function on_event()
   end
   
   if (tid==pid) then
-    prdf.handle:write(table.concat({getPidKey(pid),hostname, pid,tid,ppid,procname,args,"",evt.field(fuid),user,evt.field(fgid),everest_time,epoch,raw_time,sysdig_file,src},"\t"))
+    prdf.handle:write(table.concat({getPidKey(pid),hostname, pid,tid,ppid,procname,args,"",evt.field(fuid),user,evt.field(fgid),evt_time,raw_time,sysdig_file,src},"\t"))
     prdf.handle:write("\n")
 
-    ptdf.handle:write(table.concat({"process",getPidKey(tid),pid,tid,procname,everest_time,epoch,raw_time,sysdig_file,src},"\t"))
+    ptdf.handle:write(table.concat({"process",getPidKey(tid),pid,tid,procname,evt_time,raw_time,sysdig_file,src},"\t"))
     ptdf.handle:write("\n")
   else
-    ptdf.handle:write(table.concat({"thread",getPidKey(tid),pid,tid,procname,everest_time,epoch,raw_time,sysdig_file,src},"\t"))
+    ptdf.handle:write(table.concat({"thread",getPidKey(tid),pid,tid,procname,evt_time,raw_time,sysdig_file,src},"\t"))
     ptdf.handle:write("\n")
   end
   return true

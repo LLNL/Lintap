@@ -11,10 +11,10 @@ Proof of concept host-based event sensor for Linux. An attempt to implement Wint
 
 * Data Path - top level of all data sets
     * Data Set - data from a specific environment, time frame and configuration.
-        * Raw_sensor - raw sensor data in TSV format
+        * Raw_sensor_tsv - raw sensor data in TSV format
             * Paritioned by Day
             * Chisel writes files, rolling based on time. Example name:
-            ```data/acme/raw_sensor/daypk=YYYYMMDD/[hostname]+[event type]+[epoch].tsv```
+            ```data/acme/raw_sensor_tsv/daypk=YYYYMMDD/[hostname]+[event type]+[epoch].tsv```
             
         * scap - Sysdig capture format
             * Sysdig writes files, rolling based on size. Example name:
@@ -23,7 +23,7 @@ Proof of concept host-based event sensor for Linux. An attempt to implement Wint
 ## Post-processing
 * Combine the thousands of tiny TSV files into a single parquet file per day. No other changes are made at this stage, so the TSVs can be tossed.
 ```
-copy (from read_csv('/acmedata/lintap/raw_sensor/raw_process/**/*.tsv',timestampformat='%m/%d/%Y %H:%M:%S')) to '/acmedata/testing/raw_process_pk' (format parquet, partition_by (daypk));
+copy (from read_csv('/acmedata/lintap/raw_sensor_tsv/raw_process/**/*.tsv',timestampformat='%m/%d/%Y %H:%M:%S')) to '/acmedata/lintap/raw_sensor/raw_process' (format parquet, partition_by (daypk));
 ```
 
 # Release

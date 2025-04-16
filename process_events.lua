@@ -47,7 +47,7 @@ end
 function open_files(path, hostname)
   rp_cols = table.concat({"pid_key","hostname","ospid","tid","parentpid","process_name","args","exe","uid","username","gid","event_time","raw_time","source_file","source_event"},"\t")
   prdf = datafile.open(path, hostname, "raw_process", rp_cols)
-  rt_cols = table.concat({"type","tid_key","pid","tid","process_name","event_time","source_file","source_event"},"\t")
+  rt_cols = table.concat({"type","tid_key","pid","tid","process_name","event_time","raw_time","source_file","source_event"},"\t")
   ptdf = datafile.open(path, hostname, "raw_thread", rt_cols)
   return true
 end
@@ -99,6 +99,11 @@ function on_capture_start()
   -- Get all processes/threads that exist when starting
   -- See: https://github.com/draios/sysdig/wiki/Sysdig-Chisel-API-Reference-Manual
   existing_processes = sysdig.get_thread_table()
+
+  -- Note: As there are no timestamps in threadtable, default to OS time. 
+  -- TODO: Figure out how to get/pass a time when reading from a file.
+  epoch=os.time()
+  start_time=os.date("%m/%d/%Y %H:%M:%S",epoch)
   for tid, pi in pairs(existing_processes) do
     if pi.args then
       -- Flatten args into a single column
@@ -115,14 +120,14 @@ function on_capture_start()
     -- When equal, its the process.
     if (pi.tid==pi.pid) then
     -- Process events only - Note: there are no time fields in the thread table.
-      prdf.handle:write(table.concat({getPidKey(pi.pid),hostname, pi.pid,pi.tid,pi.ptid,pi.comm,args,pi.exe,pi.uid,pi.username,pi.gid,"",0,sysdig_file,"thread table"},"\t"))
+      prdf.handle:write(table.concat({getPidKey(pi.pid),hostname, pi.pid,pi.tid,pi.ptid,pi.comm,args,pi.exe,pi.uid,pi.username,pi.gid,start_time,epoch,sysdig_file,"thread table"},"\t"))
       prdf.handle:write("\n")
       -- Include the main process thread in the thread table
-      ptdf.handle:write(table.concat({"process",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,sysdig_file,"thread table"},"\t"))
+      ptdf.handle:write(table.concat({"process",getPidKey(pi.tid),pi.pid,tid,pi.comm,start_time,epoch,sysdig_file,"thread table"},"\t"))
       ptdf.handle:write("\n")
     else
       -- Secondary threads only 
-      ptdf.handle:write(table.concat({"thread",getPidKey(pi.tid),pi.pid,tid,pi.comm,"",0,sysdig_file,"thread table"},"\t"))
+      ptdf.handle:write(table.concat({"thread",getPidKey(pi.tid),pi.pid,tid,pi.comm,start_time,epoch,sysdig_file,"thread table"},"\t"))
       ptdf.handle:write("\n")
     end
   end

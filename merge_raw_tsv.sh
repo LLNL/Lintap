@@ -3,21 +3,48 @@
 # Merge all the raw_[event] tsv files into single parquet files per dayPK
 #
 # Usage:
-#   merge_raw_tsv [source path]
+#   merge_raw_tsv [target path]
+#
+# target path is the dir containing "raw_process, raw_thread, etc"
 
-function merge_sql {
+function event_time_sql {
     echo """
-copy (from read_csv('$1/$2/**/*.tsv',timestampformat='%m/%d/%Y %H:%M:%S')) to '$1_pk/$2_pk' (format parquet, partition_by (daypk));
+copy (
+  select 
+    event_time: event_time::timestamp_ns,
+    * exclude (event_time)
+  from read_csv('$1_tsv/$2/**/*.tsv',filename=true)
+  ) to '$1/$2' (format parquet, partition_by (daypk));
 """
 }
 
+function first_last_sql {
+    echo """
+copy (
+  select 
+    first_seen: first_seen::timestamp_ns,
+    last_seen: last_seen::timestamp_ns,
+    * exclude (first_seen, last_seen)
+  from read_csv('$1_tsv/$2/**/*.tsv',filename=true)
+  ) to '$1/$2' (format parquet, partition_by (daypk));
+"""
+}
 
 # Process by event type
-for EVENT in raw_process raw_process_conn_incr raw_process_file raw_thread
+for EVENT in raw_process raw_thread
 do
     echo `date` $EVENT
     # Subdirs MUST exist
-    mkdir -p $1_pk/$EVENT_pk
-    merge_sql=$(merge_sql $1 $EVENT)
-    echo ~/apps/duckdb -s "$merge_sql"
+    mkdir -p $1/$EVENT
+    merge_sql=$(event_time_sql $1 $EVENT)
+    ~/apps/duckdb -s "$merge_sql"
+done
+
+for EVENT in raw_process_conn_incr raw_process_file
+do
+    echo `date` $EVENT
+    # Subdirs MUST exist
+    mkdir -p $1/$EVENT
+    merge_sql=$(first_last_sql $1 $EVENT)
+    ~/apps/duckdb -s "$merge_sql"
 done

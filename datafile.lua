@@ -27,7 +27,7 @@ function datafile.new(path, hostname, event_type, cols)
   -- Save the path
   set_datatime()
   local df = {
-    fullpath=string.format("%s/raw_sensor/%s/daypk=%s", path, event_type, daypk),
+    fullpath=string.format("%s/raw_sensor_tsv/%s/daypk=%s", path, event_type, daypk),
     fn=string.format("%s+%s+%s.tsv", hostname, event_type, epoch),
     cols=cols
   }

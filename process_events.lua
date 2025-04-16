@@ -103,7 +103,7 @@ function on_capture_start()
   -- Note: As there are no timestamps in threadtable, default to OS time. 
   -- TODO: Figure out how to get/pass a time when reading from a file.
   epoch=os.time()
-  start_time=os.date("%m/%d/%Y %H:%M:%S",epoch)
+  start_time=os.date("%Y-%m-%d %H:%M:%S",epoch)
   for tid, pi in pairs(existing_processes) do
     if pi.args then
       -- Flatten args into a single column

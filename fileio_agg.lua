@@ -5,9 +5,9 @@
 --]]
 
 -- Chisel description
-description = "Summarize file IO activity every N seconds. The key for summarization is process+event+path+filename.";
-short_description = "Summarize IO activity every N seconds.";
-category = "Foraker";
+description = "Summarize file IO activity every N seconds. The key for summarization is process+event+path+filename."
+short_description = "Summarize IO activity every N seconds."
+category = "Foraker"
 
 require "common"
 datafile = require("datafile")
@@ -66,7 +66,7 @@ end
 function on_init()
   -- Request the fields
   fname = chisel.request_field("fd.name")
-  ftime = chisel.request_field("evt.time")
+	fevttime = chisel.request_field("evt.time.iso8601")
   frawtime = chisel.request_field("evt.rawtime")
   fbuflen = chisel.request_field("evt.buflen")
   ftype = chisel.request_field("evt.type")
@@ -75,7 +75,7 @@ function on_init()
   ftid = chisel.request_field("thread.tid")
 
   -- set the filter
-  chisel.set_filter("fd.type=file and (evt.type=open or evt.type=read or evt.type=write or evt.type=close or (evt.type=unlinkat and evt.dir=<))")
+  chisel.set_filter("fd.type=file and (evt.type=open or evt.type=openat or evt.type=read or evt.type=write or evt.type=mmap or evt.type=close or (evt.type=unlinkat and evt.dir=<))")
 
   if (interval>0) then
     chisel.set_interval_s(interval)
@@ -106,7 +106,7 @@ function on_event()
   local keyObject = {pid,tid,evt.field(fprocname),evt_type,filename}
   -- Danger! Filenames could have an embedded colon. I guess a process_name might also...
   local keyId = table.concat(keyObject,":")
-  local time = evt.field(ftime)
+  local evt_time = evt.field(fevttime)
   local rawtime=evt.field(frawtime)
   local buflen=evt.field(fbuflen)
   if buflen == nil then
@@ -117,12 +117,12 @@ function on_event()
     local cur=fileActivity[keyId]
     cur.count=cur.count+1
     -- Assume events are in time order, so only update the last seen
-    cur.lastSeen=time;
-    cur.lastSeenNs=rawtime;
+    cur.lastSeen=evt_time
+    cur.lastSeenNs=rawtime
     cur.bytes=cur.bytes+buflen
   else
     -- new one, add it
-    fileActivity[keyId]={count=1,bytes=buflen,firstSeen=time,lastSeen=time,firstSeenNs=rawtime,lastSeenNs=rawtime}
+    fileActivity[keyId]={count=1,bytes=buflen,firstSeen=evt_time,lastSeen=evt_time,firstSeenNs=rawtime,lastSeenNs=rawtime}
   end
   return true
 end

@@ -5,9 +5,9 @@
 --]]
 
 -- Chisel description
-description = "Summarize TCP/UDP activity every N seconds. The key for summarization is event type+5-tuple+process.";
-short_description = "Summarize TCP/UDP activity every N seconds";
-category = "Foraker";
+description = "Summarize TCP/UDP activity every N seconds. The key for summarization is event type+5-tuple+process."
+short_description = "Summarize TCP/UDP activity every N seconds"
+category = "Foraker"
 
 require "common"
 datafile = require("datafile")
@@ -57,8 +57,8 @@ function open_files(path, hostname)
     "hostname",
     "count",
     "bytes",
-    "first_seen.date",
-    "last_seen.date",
+    "first_seen",
+    "last_seen",
     "first_seen_ns",
     "last_seen_ns",
     "sysdig_file"}, "\t")
@@ -72,9 +72,8 @@ function on_init()
   -- Request the fields
   fname = chisel.request_field("fd.name")
   fl4proto = chisel.request_field("fd.l4proto")
-  ftime = chisel.request_field("evt.time")
+	fevttime = chisel.request_field("evt.time.iso8601")
   frawtime = chisel.request_field("evt.rawtime")
-  fepoch = chisel.request_field("evt.rawtime.s")
   fbuflen = chisel.request_field("evt.buflen")
   ftype = chisel.request_field("evt.type")
   fprocname = chisel.request_field("proc.name")
@@ -112,9 +111,8 @@ function on_event()
     return true
   end
   -- Which time to use and why?
-  local time = evt.field(ftime)
+  local evt_time=evt.field(fevttime)
   local rawtime=evt.field(frawtime)
-  local epoch=evt.field(fepoch)
 
   local conn_type = evt.field(ftype)
 
@@ -145,11 +143,12 @@ function on_event()
     local cur=conntable[pciKey]
     cur.count=cur.count+1
     -- Assume events are in time order, so only update the last seen
-    cur.lastSeenNs=rawtime;
+    cur.lastSeen=evt_time
+    cur.lastSeenNs=rawtime
     cur.bytes=cur.bytes+buflen
   else
     -- new one, add it
-    conntable[pciKey]={count=1,bytes=buflen,firstSeen=time,lastSeen=time,firstSeenNs=rawtime,lastSeenNs=rawtime}
+    conntable[pciKey]={count=1,bytes=buflen,firstSeen=evt_time,lastSeen=evt_time,firstSeenNs=rawtime,lastSeenNs=rawtime}
   end
   return true
 end

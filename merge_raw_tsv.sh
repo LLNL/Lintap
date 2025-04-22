@@ -30,6 +30,29 @@ copy (
 """
 }
 
+# For SELinux data from auditd
+function timestamp_sql {
+    echo """
+copy (
+  select 
+    event_time: timestamp,
+    * exclude (timestamp)
+  from read_csv('$1_tsv/$2/**/*.tsv',filename=src_filename,union_by_name=true,types={'timestamp': 'VARCHAR'})
+  ) to '$1/$2' (format parquet, partition_by (daypk));
+"""
+}
+
+for EVENT in raw_selinux_contexts raw_selinux_paths
+do
+    echo `date` $EVENT
+    # Subdirs MUST exist
+    mkdir -p $1/$EVENT
+    merge_sql=$(timestamp_sql $1 $EVENT)
+    ~/apps/duckdb -s "$merge_sql"
+done
+
+exit
+
 # Process by event type
 for EVENT in raw_process raw_thread
 do

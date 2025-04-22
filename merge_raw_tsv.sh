@@ -14,7 +14,7 @@ copy (
     event_time: event_time::timestamp_ns,
     * exclude (event_time)
   from read_csv('$1_tsv/$2/**/*.tsv',filename=true)
-  ) to '$1/$2' (format parquet, partition_by (daypk));
+  ) to '$1/$2' (format parquet, partition_by (daypk), filename_pattern '$3+$2+$4');
 """
 }
 
@@ -26,7 +26,7 @@ copy (
     last_seen: last_seen::timestamp_ns,
     * exclude (first_seen, last_seen)
   from read_csv('$1_tsv/$2/**/*.tsv',filename=true)
-  ) to '$1/$2' (format parquet, partition_by (daypk));
+  ) to '$1/$2' (format parquet, partition_by (daypk), filename_pattern '$3+$2+$4');
 """
 }
 
@@ -38,36 +38,47 @@ copy (
     event_time: timestamp,
     * exclude (timestamp)
   from read_csv('$1_tsv/$2/**/*.tsv',filename=src_filename,union_by_name=true,types={'timestamp': 'VARCHAR'})
-  ) to '$1/$2' (format parquet, partition_by (daypk));
+  ) to '$1/$2' (format parquet, partition_by (daypk), filename_pattern '$3+$2+$4');
 """
 }
-
-for EVENT in raw_selinux_contexts raw_selinux_paths
-do
-    echo `date` $EVENT
-    # Subdirs MUST exist
-    mkdir -p $1/$EVENT
-    merge_sql=$(timestamp_sql $1 $EVENT)
-    ~/apps/duckdb -s "$merge_sql"
-done
-
-exit
 
 # Process by event type
 for EVENT in raw_process raw_thread
 do
     echo `date` $EVENT
-    # Subdirs MUST exist
-    mkdir -p $1/$EVENT
-    merge_sql=$(event_time_sql $1 $EVENT)
-    ~/apps/duckdb -s "$merge_sql"
+    if [ -d "$1_tsv/$EVENT" ]; then
+      # Subdirs MUST exist
+      mkdir -p $1/$EVENT
+      merge_sql=$(event_time_sql $1 $EVENT `hostname` `date +%s`)
+      ~/apps/duckdb -s "$merge_sql"
+    else
+	echo Source dir missing: $1_tsv/$EVENT
+    fi
 done
 
 for EVENT in raw_process_conn_incr raw_process_file
 do
-    echo `date` $EVENT
-    # Subdirs MUST exist
-    mkdir -p $1/$EVENT
-    merge_sql=$(first_last_sql $1 $EVENT)
-    ~/apps/duckdb -s "$merge_sql"
+    if [ -d "$1_tsv/$EVENT" ]; then
+      echo `date` $EVENT
+      # Subdirs MUST exist
+      mkdir -p $1/$EVENT
+      merge_sql=$(first_last_sql $1 $EVENT `hostname` `date +%s`)
+      ~/apps/duckdb -s "$merge_sql"
+    else
+	echo Source dir missing: $1_tsv/$EVENT
+    fi
 done
+
+for EVENT in raw_selinux_contexts raw_selinux_paths
+do
+    if [ -d "$1_tsv/$EVENT" ]; then
+      echo `date` $EVENT
+      # Subdirs MUST exist
+      mkdir -p $1/$EVENT
+      merge_sql=$(timestamp_sql $1 $EVENT `hostname` `date +%s`)
+      ~/apps/duckdb -s "$merge_sql"
+    else
+	echo Source dir missing: $1_tsv/$EVENT
+    fi
+done
+

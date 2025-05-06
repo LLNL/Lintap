@@ -7,14 +7,28 @@ RAW_PROCESS
 RAW_PROCESS_FILE
  */
 
+-- Macros are used to define constants for the data paths. 
+-- parquet_def should be one of these forms:
+--   raw_process/**/*.parquet
+--   process.parquet
+create or replace macro dp(parquet_def)
+as
+concat_ws('/','~/git/LLNL/Lintap/data/lintap-20250430/lintap/data/raw_sensor',parquet_def)
+;
+
 -- From initdb.sql
 create or replace macro to_timestamp_micros(es)
 as to_timestamp(cast(floor(es) as bigint)) + to_microseconds(cast(floor((es - floor(es)) * 1e6) as bigint))
 ;
 
+-- FileID
+-- Assume filesystem case-sensitive
+create or replace macro gen_file_id(hostname, filename)
+as md5(concat_ws('||', hostname, filename))
+;
 
 -- Data directly from merge_raw_tsv.sh
-create or replace table raw_lintap_process as from '/Users/johnson30/data/lintap/lindseyw/lintap-20250417-1/raw_sensor/raw_process/**/*.parquet'
+create or replace table raw_lintap_process as from read_parquet(dp('raw_process/**/*.parquet'))
 ;
 -- Derive features used for creating and debugging PID_HASH
 -- To Do: Consider moving these derived values into the merge_raw_tsv.sh script
@@ -171,7 +185,7 @@ SELECT
   split(file_id, ':')[4] event_type,
   split(file_id, ':')[5] filename,
   * exclude (file_id)    
-from '/Users/johnson30/data/lintap/lindseyw/lintap-20250417-1/raw_sensor/raw_process_file/**/*.parquet'
+from read_parquet(dp('raw_process_file/**/*.parquet'))
 ;
 
 create or replace table raw_process_file
@@ -217,7 +231,7 @@ SELECT
     hostname,
     pidhash pid_hash, -- generate FileID
     processname process_name,
-    md5(concat_ws('||', hostname, lower(file_path))) file_id,
+    file_id: gen_file_id(hostname, file_path),
     file_hash file_hash,
     file_path filename,
     activitytype activity_type,

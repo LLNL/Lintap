@@ -38,6 +38,7 @@ The existing pipeline ingests the raw Wintap format data and produces silver and
 #### Sysdig
 
 Source: https://github.com/draios/sysdig
+Cheat Sheet: https://www.scribd.com/document/414390974/Linux-Cheatsheet-FINAL-eBOOK-1-pdf
 
 As `sysdig` requires installing and configuring a kernel module, you'll need root privileges.
 

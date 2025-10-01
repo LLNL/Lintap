@@ -7,6 +7,9 @@
   - Calculate a propper PIDHASH
   	- Look for dups after that: different parents/process_names/other?
   - Simulate streaming with window functions(?) then look for anomolies
+
+  - A better way to match Auditd to Sysdig? Splink: Fast, accurate and scalable data linkage and deduplication
+      https://github.com/moj-analytical-services/splink
   
  */
 
@@ -55,7 +58,7 @@ SELECT
 	'missing' FileSha2,
 	UserName,
 	args ProcessArgs,
-	epoch_us(event_time)/1e6 EventTime,
+  epoch_us(event_time)/1e6 EventTime,
 	'PROCESS' MessageType,
 	case
 		when source_event='thread table' then 'refresh'
@@ -363,7 +366,6 @@ copy test to '/Users/johnson30/test.parquet' (format 'parquet')
 summarize test
 
 select to_timestamp(1744477366124900100/1e9)
-
 
 /* Examples of true pid reuse
 '133699:133698:1.7444773793897e+18'

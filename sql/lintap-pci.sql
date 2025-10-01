@@ -1,3 +1,14 @@
+/*
+Convert from LINTAP RAW data (from merge_raw_tsv.sh) to Wintap RAW.
+
+This script supports:
+
+RAW_PROCESS_CONN_INCR
+
+Depends on the macro dp() existing and having the correct path to data. See rawtostdview.sql
+
+*/ 
+
 create or replace macro int_to_ip(i)
 as concat_ws('.',i >> 24,i >> 16 & 255,i >> 8 & 255,i & 255)
 ;

@@ -100,8 +100,11 @@ sudo make install
 
 The current process requires manual execution of DuckDB SQL scripts in the following order:
 
-1. `rawtostdview.sql` - Defines the datapath for all incoming data using a macro (dp)
-2. `selinux.sql` - Processes SELinux data
+_Note: Base file path for data files is defined in a macro `dp()` in the rawtostdview.sql file. Confirm that is correct.
+
+1. `rawtostdview.sql` - Process and file events
+2. `lintap-pci.sql` - Network events
+2. `selinux.sql` - SELinux data
 3. `~/git/foraker-support/foraker-everest/ontology/duckdb/everest-lintap-ddl.sql` - Creates Files and All_Files tables for Lintap data
 4. `selinux-everest.sql` - Adds SELinux data to Files and All_Files tables
 5. `Everest-network.sql` - Processes network data

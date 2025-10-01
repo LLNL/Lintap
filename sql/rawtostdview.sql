@@ -1,13 +1,13 @@
 /*
 Convert from LINTAP RAW data (from merge_raw_tsv.sh) to Wintap RAW.
 
-Currently supports:
+This script supports:
 
 RAW_PROCESS
 RAW_PROCESS_FILE
  */
 
--- Macros are used to define constants for the data paths. 
+-- Macros are used to define constants for the data paths. Modify this path as needed.
 -- parquet_def should be one of these forms:
 --   raw_process/**/*.parquet
 --   process.parquet

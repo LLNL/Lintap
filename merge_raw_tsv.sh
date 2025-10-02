@@ -6,24 +6,47 @@
 #   merge_raw_tsv [target path]
 #
 # target path is the dir containing "raw_process, raw_thread, etc"
+# The script assumes raw tsv files are in [target]_tsv
 
+# Validate dirs
+# Check if argument is provided
+if [ -z "$1" ]; then
+    echo "Error: No directory path provided"
+    exit 1
+fi
+
+# Check if the directory exists (should not exist)
+if [ -d "$1" ]; then
+    echo "Error: Directory $1 already exists"
+    exit 1
+fi
+
+# Check if the _tsv directory exists (should exist)
+tsv_dir="${1}_tsv"
+if [ ! -d "$tsv_dir" ]; then
+    echo "Error: Directory $tsv_dir does not exist"
+    exit 1
+fi
+
+# For tables with a single event_time field
 function event_time_sql {
     echo """
 copy (
   select 
-    event_time: event_time::timestamp_ns,
+    event_time: (event_time AT TIME ZONE 'UTC')::timestamp_ns,
     * exclude (event_time)
   from read_csv('$1_tsv/$2/**/*.tsv',filename=true)
   ) to '$1/$2' (format parquet, partition_by (daypk), filename_pattern '$3+$2+$4');
 """
 }
 
+# For tables with first_seen/last_seen fields
 function first_last_sql {
     echo """
 copy (
   select 
-    first_seen: first_seen::timestamp_ns,
-    last_seen: last_seen::timestamp_ns,
+    first_seen: (first_seen AT TIME ZONE 'UTC')::timestamp_ns,
+    last_seen: (last_seen AT TIME ZONE 'UTC')::timestamp_ns,
     * exclude (first_seen, last_seen)
   from read_csv('$1_tsv/$2/**/*.tsv',filename=true)
   ) to '$1/$2' (format parquet, partition_by (daypk), filename_pattern '$3+$2+$4');
@@ -50,7 +73,7 @@ do
       # Subdirs MUST exist
       mkdir -p $1/$EVENT
       merge_sql=$(event_time_sql $1 $EVENT `hostname` `date +%s`)
-      ~/apps/duckdb -s "$merge_sql"
+      duckdb -s "$merge_sql"
     else
 	echo Source dir missing: $1_tsv/$EVENT
     fi
@@ -63,7 +86,7 @@ do
       # Subdirs MUST exist
       mkdir -p $1/$EVENT
       merge_sql=$(first_last_sql $1 $EVENT `hostname` `date +%s`)
-      ~/apps/duckdb -s "$merge_sql"
+      duckdb -s "$merge_sql"
     else
 	echo Source dir missing: $1_tsv/$EVENT
     fi
@@ -76,9 +99,8 @@ do
       # Subdirs MUST exist
       mkdir -p $1/$EVENT
       merge_sql=$(timestamp_sql $1 $EVENT `hostname` `date +%s`)
-      ~/apps/duckdb -s "$merge_sql"
+      duckdb -s "$merge_sql"
     else
 	echo Source dir missing: $1_tsv/$EVENT
     fi
 done
-

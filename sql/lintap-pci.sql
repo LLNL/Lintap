@@ -91,6 +91,10 @@ asof join process p
    on rpci.hostname=p.hostname
   and rpci.pid=p.os_pid
   and rpci.first_seen >= p.process_started
+  -- Some UDP rows are being parsed wrong and getting what looks like a file descriptor: fd18
+  -- This will help make sure we're only getting IPV4
+where regexp_full_match(localipaddr, '^(\d{1,3}\.){3}\d{1,3}$')
+and regexp_full_match(localipaddr, '^(\d{1,3}\.){3}\d{1,3}$')
 group by all
 ;
 

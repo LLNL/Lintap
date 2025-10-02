@@ -1,0 +1,50 @@
+#cloud-config
+package_update: true
+packages:
+  - python3
+  - python3-pip
+  - git
+  - curl
+  - gnupg
+  - apt-transport-https
+  - ca-certificates
+
+runcmd:
+  - |
+
+    # Detect architecture once
+    ARCH=$(uname -m)
+    if [ "$ARCH" = "x86_64" ]; then
+      DUCKDB_ARCH="linux-amd64"
+      SYSDIG_ARCH="amd64"
+    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+      DUCKDB_ARCH="linux-arm64"
+      SYSDIG_ARCH="arm64"
+    else
+      echo "Unsupported architecture: $ARCH"
+      exit 1
+    fi
+    
+    # Install sysdig. Their script detects kernel/arch.
+    curl -s https://download.sysdig.com/DRAIOS-GPG-KEY.public | sudo gpg --dearmor -o /usr/share/keyrings/sysdig-archive-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/sysdig-archive-keyring.gpg] https://download.sysdig.com/stable/deb stable-${SYSDIG_ARCH}/" | sudo tee /etc/apt/sources.list.d/sysdig.list
+    apt update
+    apt install -y sysdig
+    # sysdig-probe-loader --install
+    
+    # Install DuckDB CLI (latest release)
+    echo "Installing DuckDB CLI for $ARCH architecture..."
+    curl -L "https://github.com/duckdb/duckdb/releases/latest/download/duckdb_cli-${DUCKDB_ARCH}.zip" -o /tmp/duckdb.zip
+    apt-get install -y unzip
+    unzip /tmp/duckdb.zip -d /usr/local/bin/
+    chmod +x /usr/local/bin/duckdb
+    rm /tmp/duckdb.zip
+    
+    # Install .NET Core 9 SDK from the Ubuntu feed
+    echo "Setting up Microsoft repository for $ARCH architecture..."
+    add-apt-repository ppa:dotnet/backports
+    apt-get update
+    apt-get install -y dotnet-sdk-9.0
+
+  # Clone LLNL/Lintap repo
+  - git clone https://github.com/LLNL/Lintap.git /home/ubuntu/git/Lintap

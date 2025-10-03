@@ -1,4 +1,4 @@
-<p align="center"><img src="lintap-logo.png" alt="Lintap Logo" width="200" height="200"></p>
+<p align="center"><img src="lintap-logo-dev.png" alt="Lintap Logo" width="200" height="200"></p>
 
 # Lintap
 

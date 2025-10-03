@@ -13,7 +13,7 @@ RAW_PROCESS_FILE
 --   process.parquet
 create or replace macro dp(parquet_def)
 as
-concat_ws('/','~/git/LLNL/Lintap/data/lintap-20250430/lintap/data/raw_sensor',parquet_def)
+concat_ws('/','data/lintap/raw_sensor',parquet_def)
 ;
 
 -- From initdb.sql

@@ -8,6 +8,7 @@ packages:
   - gnupg
   - apt-transport-https
   - ca-certificates
+  - tree
 
 runcmd:
   - |
@@ -40,11 +41,11 @@ runcmd:
     chmod +x /usr/local/bin/duckdb
     rm /tmp/duckdb.zip
     
-    # Install .NET Core 9 SDK from the Ubuntu feed
+    # Install .NET Core 8 LTS SDK from the Ubuntu feed
     echo "Setting up Microsoft repository for $ARCH architecture..."
     add-apt-repository ppa:dotnet/backports
     apt-get update
-    apt-get install -y dotnet-sdk-9.0
+    apt-get install -y dotnet-sdk-8.0
 
   # Clone LLNL/Lintap repo
   - git clone https://github.com/LLNL/Lintap.git /home/ubuntu/git/Lintap

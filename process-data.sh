@@ -8,4 +8,4 @@
 ./merge_raw_tsv.sh
 
 # Convert from raw lintap to base tables, leave at duckdb prompt
- duckdb --cmd ".read sql/rawtostdview.sql" --cmd ".read sql/lintap-pci.sql" -cmd "show tables;" $1
+ duckdb --cmd ".read sql/rawtostdview.sql" --cmd ".read sql/lintap-pci.sql" -cmd ".read sql/summary.sql" $1

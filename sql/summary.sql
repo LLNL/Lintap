@@ -5,6 +5,15 @@ show tables
 
 select * from (
 select
+  'raw lintap' as event_type,
+  elapsed: max(event_time) - min(event_time),
+  uniq_process: count(distinct process_name),
+  num_rows: count(*)
+from
+  raw_lintap_process
+group by all
+union by name
+select
   'process' as event_type,
   elapsed: max(last_seen) - min(first_seen),
   uniq_process: count(distinct process_name),
@@ -37,3 +46,6 @@ group by all
 )
 order by event_type desc
 ;
+
+-- More than 1 process_name? Not good
+select 

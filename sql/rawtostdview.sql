@@ -40,12 +40,12 @@ select * exclude (pid_key),
   prior_process_name: lag(process_name, 1, 'first event') over pid_events,
   elapsed: event_time - lag(event_time, 1, null) over pid_events,
   name_change: process_name <> lag(process_name, 1, process_name) over pid_events,
-  pid_key: concat_ws(':', ospid, parentpid, naive_start_time),
+  pid_key: concat_ws(':', hostname, process_name, ospid, parentpid, naive_start_time),
   -- TODO: Add a running total based on this value. The result *should* be a consistent value over the events between a START/EXIT and useable as a partition key in a subsequent query to breakup "re-used" PIDs.
   -- Note: Putting this off as it appears there really aren't many of these cases. See "Summary of Naive" and look at the "num_process" field.
   new_process: if(prior_event='procexit >',1,0),
 from (select *, num_dups: count(*) from raw_lintap_process group by all)
-window pid_events as (partition by hostname, ospid, parentpid order by event_time)
+window pid_events as (partition by hostname, process_name, ospid, parentpid order by event_time)
 ;
 
 -- Now map to raw_process. From here, we can leverage the existing raw_to_stdview sql.

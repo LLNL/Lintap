@@ -46,6 +46,3 @@ group by all
 )
 order by event_type desc
 ;
-
--- More than 1 process_name? Not good
-select 

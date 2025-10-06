@@ -47,5 +47,11 @@ runcmd:
     apt-get update
     apt-get install -y dotnet-sdk-8.0
 
-  # Clone LLNL/Lintap repo
-  - git clone https://github.com/LLNL/Lintap.git /home/ubuntu/git/Lintap
+  # Run the following as the ubuntu user
+  # Clone LLNL/Lintap and Wintap repos, checkout dev branches
+  - su - ubuntu -c "git clone https://github.com/LLNL/Lintap.git /home/ubuntu/git/Lintap"
+  - su - ubuntu -c "cd /home/ubuntu/git/Lintap && git checkout develop"
+  # Create down to the data directory as ubuntu. When the full-capture script runs, it will write raw_sensor_tsv/* as root
+  - su - ubuntu -c "mkdir -p /home/ubuntu/git/Lintap/data/lintap"
+  - su - ubuntu -c "git clone https://github.com/LLNL/Wintap.git /home/ubuntu/git/Wintap"
+  - su - ubuntu -c "cd /home/ubuntu/git/Wintap && git checkout wintap-v7"

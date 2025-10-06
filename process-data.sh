@@ -19,8 +19,8 @@ done
 
 # Handle overwrite if flag is set
 if [ "$OVERWRITE" = true ]; then
-  echo "Overwrite flag detected. Removing output directory..."
-  rm -rf ./output_dir  # Replace with your actual directory
+  echo "Overwrite flag detected. Removing raw_sensor directory..."
+  rm -rf data/lintap/raw_sensor  # Replace with your actual directory
 fi
 
 # Merge all existing TSV by type into a single parquet file per type

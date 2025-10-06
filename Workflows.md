@@ -1,5 +1,12 @@
 # Typical Workflows
 
+This page assumes you're using the (Multipass)[https://canonical.com/multipass] Ubuntu VM Manager. Following the instructions there to get Multipass installed.
+
+Once installed, from your host, in this repo, run:
+
+1. `launch-multipass.sh`
+2. (optional) `config-ssh.sh`
+
 ## Dead Simple
 These steps are done in series with the result being a database with Foraker base tables for all data.
 

@@ -109,3 +109,5 @@ do
     	echo Source dir missing: $tsv_source/$EVENT
     fi
 done
+
+echo `date` Merge TSV complete

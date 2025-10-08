@@ -7,6 +7,7 @@ RAW_PROCESS
 RAW_PROCESS_FILE
  */
 
+.print Creating Macros
 -- Macros are used to define constants for the data paths. Modify this path as needed.
 -- parquet_def should be one of these forms:
 --   raw_process/**/*.parquet
@@ -27,9 +28,13 @@ create or replace macro gen_file_id(hostname, filename)
 as md5(concat_ws('||', hostname, filename))
 ;
 
+.print raw_lintap_process
 -- Data directly from merge_raw_tsv.sh
-create or replace table raw_lintap_process as from read_parquet(dp('raw_process/**/*.parquet'))
+create or replace view raw_lintap_process as from read_parquet(dp('raw_process/**/*.parquet'))
 ;
+
+.print lintap_process
+
 -- Derive features used for creating and debugging PID_HASH
 -- To Do: Consider moving these derived values into the merge_raw_tsv.sh script
 create or replace table lintap_process
@@ -47,6 +52,8 @@ select * exclude (pid_key),
 from (select *, num_dups: count(*) from raw_lintap_process group by all)
 window pid_events as (partition by hostname, process_name, ospid, parentpid order by event_time)
 ;
+
+.print raw_process
 
 -- Now map to raw_process. From here, we can leverage the existing raw_to_stdview sql.
 create or replace view raw_process
@@ -84,6 +91,8 @@ FROM
 	lintap_process
 group by all
 ;
+
+.print process
 
 CREATE OR REPLACE TABLE process
 AS
@@ -169,11 +178,15 @@ FROM raw_process p
 GROUP BY ALL
 ;
 
+.print set parent_pid_hash
+
 -- Set Parent_Pid_Hash
 update process p
 set parent_pid_hash=
   (select first(pid_hash order by pp.process_started) from process pp where pp.os_pid=p.parent_os_pid and pp.hostname=p.hostname)
 ;
+
+.print raw_lintap_process_file
 
 -- File data
 -- Data directly from merge_raw_tsv.sh
@@ -187,6 +200,8 @@ SELECT
   * exclude (file_id)    
 from read_parquet(dp('raw_process_file/**/*.parquet'))
 ;
+
+.print raw_lintap_process
 
 create or replace table raw_process_file
 as
@@ -223,6 +238,7 @@ asof join process p
 group by all
 ;
 
+.print process_file
 
 CREATE TABLE IF NOT EXISTS process_file
 AS
@@ -246,6 +262,7 @@ FROM raw_process_file
 GROUP BY ALL
 ;
 
+.print process_file_summary
 
 create or replace view process_file_summary
 --# required

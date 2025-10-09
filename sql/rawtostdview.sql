@@ -284,6 +284,7 @@ SELECT
   sum(CASE WHEN activity_type = 'WRITE' THEN bytes_Requested ELSE 0 END) Write_Bytes,
   sum(CASE WHEN activity_type = 'WRITE' THEN event_count ELSE 0 END) Write_Events,
   sum(num_raw_rows) num_raw_rows,
+  count(DISTINCT filename) num_uniq_filename,
   count(DISTINCT file_hash) num_uniq_file_hash,
   sum(CASE WHEN filename IS NULL THEN 1 ELSE 0 END) num_null_filename,
   min(first_seen) first_seen,

@@ -38,7 +38,7 @@ function event_time_sql {
     echo """
 copy (
   select 
-    event_time: (event_time AT TIME ZONE 'UTC')::timestamp_ns,
+    event_time: (event_time::TIMESTAMPTZ AT TIME ZONE 'UTC')::timestamp_ns,
     * exclude (event_time)
   from read_csv('$1/$2/**/*.tsv',filename=true)
   ) to '$5/$2' (format parquet, partition_by (daypk), filename_pattern '$3+$2+$4');
@@ -50,8 +50,8 @@ function first_last_sql {
     echo """
 copy (
   select 
-    first_seen: (first_seen AT TIME ZONE 'UTC')::timestamp_ns,
-    last_seen: (last_seen AT TIME ZONE 'UTC')::timestamp_ns,
+    first_seen: (first_seen::TIMESTAMPTZ AT TIME ZONE 'UTC')::timestamp_ns,
+    last_seen: (last_seen::TIMESTAMPTZ AT TIME ZONE 'UTC')::timestamp_ns,
     * exclude (first_seen, last_seen)
   from read_csv('$1/$2/**/*.tsv',filename=true)
   ) to '$5/$2' (format parquet, partition_by (daypk), filename_pattern '$3+$2+$4');
@@ -79,6 +79,10 @@ do
       mkdir -p $target/$EVENT
       merge_sql=$(event_time_sql $tsv_source $EVENT `hostname` `date +%s` $target)
       duckdb -s "$merge_sql"
+      if [ $? -ne 0 ]; then
+        echo "Failed: "
+        echo $merge_sql
+      fi
     else
 	    echo Source event dir missing: $tsv_source/$EVENT
     fi
@@ -92,6 +96,10 @@ do
       mkdir -p $target/$EVENT
       merge_sql=$(first_last_sql $tsv_source $EVENT `hostname` `date +%s` $target)
       duckdb -s "$merge_sql"
+      if [ $? -ne 0 ]; then
+        echo "Failed: "
+        echo $merge_sql
+      fi
     else
 	    echo Source event dir missing: $tsv_source/$EVENT
     fi
@@ -105,6 +113,10 @@ do
       mkdir -p $target/$EVENT
       merge_sql=$(timestamp_sql $tsv_source $EVENT `hostname` `date +%s` $target)
       duckdb -s "$merge_sql"
+      if [ $? -ne 0 ]; then
+        echo "Failed: "
+        echo $merge_sql
+      fi
     else
     	echo Source dir missing: $tsv_source/$EVENT
     fi

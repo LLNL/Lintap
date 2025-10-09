@@ -1,18 +1,56 @@
+#!/bin/bash
 # Run with rotating files, foraker filter, minimal snaplen
 # Writes SCAP and executes chisel, which writes CSVs
 
 # Define values used to name data files
 hostname=`hostname -f`
 timestamp=`date +"%s"`
-# Defaults for datapath and dataset.
-datapath=${1:-data}
-dataset=${2:-lintap}
+
+# Default values
+datapath="data"
+dataset="lintap"
+write_scap_flag=true
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --no-scap)
+      write_scap_flag=false
+      shift
+      ;;
+    *)
+      # Handle positional arguments
+      if [[ -z "$datapath_set" ]]; then
+        datapath="$1"
+        datapath_set=true
+      elif [[ -z "$dataset_set" ]]; then
+        dataset="$1"
+        dataset_set=true
+      else
+        echo "Unknown arg: $1"
+        exit 1
+      fi
+      shift
+      ;;
+  esac
+done
+
+# Setup paths
+lintappath="$datapath/$dataset"
 scapdir="$datapath/$dataset/scap"
 scapfile="$scapdir/$hostname-$timestamp.scap"
-lintappath="$datapath/$dataset"
 mkdir -p $scapdir
 
-echo "Writing SCAP files to:   $scapfile"
+# Configure SCAP writing based on flag
+if [ "$write_scap_flag" = true ]; then
+  write_scap="-zw $scapfile -C 50"
+  scap_file_msg="$scapfile"
+else
+  write_scap=""
+  scap_file_msg="no SCAP written"
+fi
+
+echo "Writing SCAP files to:   $scap_file_msg"
 echo "Writing Lintap files to: $lintappath"
 
 # Filters for events
@@ -24,11 +62,12 @@ network_filter="fd.l4proto=tcp or fd.l4proto=udp"
 #  -c [chisel] "[chisel args]"
 #      Note: multiple chisel args need to be quoted so the shell treats them as a single string
 #  -zw Write events to SCAP file, compressed
+#  -C Rotate SCAP file at N MB
 #  -s Limit bytes of buffer data captured for file io/network packets
 #       Note: 8 seems to be the smallest actual size
-#  -C Rotate SCAP file at N MB
 #  -F Event filter
 sysdig -c ./process_events.lua $lintappath \
   -c fileio_agg.lua "10 $lintappath" \
   -c pci_agg.lua "10 $lintappath" \
-  -zw $scapfile -s 8 -C 50 -F "($process_filter) or ($file_filter) or ($network_filter)"
+  $write_scap \
+  -s 8 -F "($process_filter) or ($file_filter) or ($network_filter)"

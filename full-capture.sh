@@ -57,6 +57,18 @@ echo "Writing Lintap files to: $lintappath"
 process_filter="((evt.type=execve and evt.dir=<) or (evt.type=clone and evt.dir=>) or (evt.type=vfork and evt.dir=<) or evt.type=procexit)" 
 file_filter="fd.type=file and (evt.type=open or evt.type=openat or evt.type=read or evt.type=write or evt.type=mmap or evt.type=close  or (evt.type=unlinkat and evt.dir=<))"
 network_filter="fd.l4proto=tcp or fd.l4proto=udp"
+memory_filter="(
+    evt.type in (brk, mmap, mmap2, munmap, mprotect, mremap, madvise, mincore,
+                 mlock, munlock, mlockall, munlockall, mlock2,
+                 pkey_mprotect,
+                 mbind, set_mempolicy, get_mempolicy, set_mempolicy_home_node,
+                 remap_file_pages,
+                 map_shadow_stack,
+                 cachestat
+    )
+    or evt.type in (process_vm_readv, process_vm_writev)
+    or evt.type in (splice, vmsplice, tee) )
+"
 
 # Sysdig parameters:
 #  -c [chisel] "[chisel args]"
@@ -69,5 +81,6 @@ network_filter="fd.l4proto=tcp or fd.l4proto=udp"
 sysdig -c ./process_events.lua $lintappath \
   -c fileio_agg.lua "10 $lintappath" \
   -c pci_agg.lua "10 $lintappath" \
+  -c memory_events.lua $lintappath \
   $write_scap \
-  -s 8 -F "($process_filter) or ($file_filter) or ($network_filter)"
+  -s 8 -F "($process_filter) or ($file_filter) or ($network_filter) or ($memory_filter)"

@@ -27,7 +27,7 @@ fi
 ./merge_raw_tsv.sh
 
 # Build the duckdb command
-DUCKDB_CMD='duckdb --cmd ".read sql/rawtostdview.sql" --cmd ".read sql/lintap-pci.sql" -cmd ".read sql/summary.sql" -cmd ".read sql/lintap-memory.sql"'
+DUCKDB_CMD='duckdb --cmd ".read sql/rawtostdview.sql" --cmd ".read sql/lintap-pci.sql" -cmd ".read sql/lintap-memory.sql" -cmd ".read sql/summary.sql"'
 
 # Add database parameter if provided
 if [ -n "$DATABASE" ]; then

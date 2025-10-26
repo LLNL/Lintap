@@ -43,6 +43,34 @@ select
 from
   process_net_conn
 group by all
+union by name
+select
+  'memory' as event_type,
+  elapsed: max(event_time) - min(event_time),
+  uniq_process: count(distinct process_name),
+  uniq_events: count(distinct source_event),
+  uniq_info: count(distinct evt_info),
+  num_rows: count(*),
+from
+  raw_lintap_memory
+group by all
 )
 order by event_type desc
 ;
+
+.print Memory summary
+select source_event,
+    array_to_string(list_transform(string_split(evt_info, ' '), p -> split_part(p, '=', 1)), ', ') AS keys,
+       count(*) AS record_count,
+      first(evt_info) AS sample_record
+    FROM raw_lintap_memory
+    GROUP BY all
+    ORDER BY record_count DESC
+;
+
+.print Memory Flags
+select source_event, REGEXP_EXTRACT(evt_info, 'flags=\d+\(([^)]+)\)', 1) AS flags_desc, count(*), count(distinct process_name)
+  from raw_lintap_memory group by all 
+  order by all
+;
+

@@ -49,6 +49,7 @@ select * exclude (pid_key),
   -- TODO: Add a running total based on this value. The result *should* be a consistent value over the events between a START/EXIT and useable as a partition key in a subsequent query to breakup "re-used" PIDs.
   -- Note: Putting this off as it appears there really aren't many of these cases. See "Summary of Naive" and look at the "num_process" field.
   new_process: if(prior_event='procexit >',1,0),
+  decoded_args: from_base64(args)::varchar
 from (select *, num_dups: count(*) from raw_lintap_process group by all)
 window pid_events as (partition by hostname, process_name, ospid, parentpid order by event_time)
 ;
@@ -71,7 +72,7 @@ SELECT
 	'missing' FileMd5,
 	'missing' FileSha2,
 	UserName,
-	args ProcessArgs,
+	decoded_args ProcessArgs,
 	epoch_us(event_time)/1e6 EventTime,
 	'PROCESS' MessageType,
 	case

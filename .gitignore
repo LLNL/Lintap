@@ -1,17 +1,35 @@
-# Ignore the local data dir
-data
+# eBPF compiled objects
+*.o
 
-# Mac stuff
-**/*log
+# .NET build outputs
+bin/
+obj/
+*.user
+*.suo
+
+# OS files
+.DS_Store
 **/.DS_Store
+Thumbs.db
+**/.fuse_hidden*
 
-# Jupyter and python
+# IDE files
+.vscode/
+**/.vscode
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+**/*log
+
+# Emacs backup files
+*~
+
+# Jupyter and Python
 **/.ipynb_checkpoints
 **/__pycache__
 
-# emacs backup files
-*~
-
-# VSCode
-**/.vscode
-
+# Local data directory
+data/

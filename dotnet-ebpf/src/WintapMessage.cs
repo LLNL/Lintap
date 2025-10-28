@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace EbpfOpenatPoc;
+namespace EbpfTracer;
 
 /// <summary>
 /// Maps Linux eBPF execve events to Wintap message format

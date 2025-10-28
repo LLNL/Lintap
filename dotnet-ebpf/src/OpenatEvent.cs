@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace EbpfOpenatPoc;
+namespace EbpfTracer;
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
 public unsafe struct OpenatEvent

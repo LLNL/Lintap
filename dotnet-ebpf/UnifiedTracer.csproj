@@ -5,8 +5,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <RootNamespace>EbpfOpenatPoc</RootNamespace>
-    <StartupObject>UnifiedTracer</StartupObject>
+    <RootNamespace>EbpfTracer</RootNamespace>
+    <StartupObject>EbpfTracer.UnifiedTracer</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>

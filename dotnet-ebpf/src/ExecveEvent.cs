@@ -2,7 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace EbpfOpenatPoc;
+namespace EbpfTracer;
 
 [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
 public unsafe struct ExecveEvent

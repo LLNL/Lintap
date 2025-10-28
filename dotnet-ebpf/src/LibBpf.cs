@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace EbpfOpenatPoc;
+namespace EbpfTracer;
 
 public static class LibBpf
 {

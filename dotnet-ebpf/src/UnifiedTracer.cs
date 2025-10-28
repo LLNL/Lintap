@@ -2,8 +2,12 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using EbpfOpenatPoc;
 
+namespace EbpfTracer;
+
+/// <summary>
+/// Main unified tracer application that orchestrates multiple eBPF tracers.
+/// </summary>
 class UnifiedTracer
 {
     private static bool _running = true;
@@ -31,20 +35,9 @@ class UnifiedTracer
             return 1;
         }
 
-        // Setup event handler
+        // Setup event handler based on configuration
         var adapter = new WintapMessageAdapter();
-        _eventHandler = config.OutputFile != null
-            ? new FileEventHandler(adapter, config.OutputFile)
-            : new ConsoleEventHandler(adapter);
-
-        // Setup composite handler if needed
-        if (config.EnableConsole && config.OutputFile != null)
-        {
-            var composite = new CompositeEventHandler();
-            composite.AddHandler(new ConsoleEventHandler(adapter));
-            composite.AddHandler(new FileEventHandler(adapter, config.OutputFile));
-            _eventHandler = composite;
-        }
+        _eventHandler = CreateEventHandler(config, adapter);
 
         var tracers = new List<TracerInstance>();
 
@@ -77,7 +70,7 @@ class UnifiedTracer
             Console.WriteLine();
             Console.WriteLine(new string('=', 120));
 
-            // Setup signal handler
+            // Setup signal handler for graceful shutdown
             Console.CancelKeyPress += (sender, e) =>
             {
                 e.Cancel = true;
@@ -91,7 +84,7 @@ class UnifiedTracer
                 foreach (var tracer in tracers)
                 {
                     int pollRet = LibBpf.ring_buffer__poll(tracer.RingBuffer, 10);
-                    if (pollRet < 0 && pollRet != -4) // -4 is EINTR
+                    if (pollRet < 0 && pollRet != -4) // -4 is EINTR (interrupted system call)
                     {
                         Console.WriteLine($"ERROR: {tracer.Name} ring_buffer__poll failed: {pollRet}");
                     }
@@ -114,6 +107,28 @@ class UnifiedTracer
             {
                 tracer.Dispose();
             }
+        }
+    }
+
+    private static IEventHandler CreateEventHandler(TracerConfig config, WintapMessageAdapter adapter)
+    {
+        if (config.EnableConsole && config.OutputFile != null)
+        {
+            // Both console and file output
+            var composite = new CompositeEventHandler();
+            composite.AddHandler(new ConsoleEventHandler(adapter));
+            composite.AddHandler(new FileEventHandler(adapter, config.OutputFile));
+            return composite;
+        }
+        else if (config.OutputFile != null)
+        {
+            // File output only
+            return new FileEventHandler(adapter, config.OutputFile);
+        }
+        else
+        {
+            // Console output (default)
+            return new ConsoleEventHandler(adapter);
         }
     }
 
@@ -329,6 +344,9 @@ Examples:
     private static extern uint GetEuid();
 }
 
+/// <summary>
+/// Configuration for the tracer application.
+/// </summary>
 class TracerConfig
 {
     public bool TraceExecve { get; set; }
@@ -337,6 +355,9 @@ class TracerConfig
     public bool EnableConsole { get; set; }
 }
 
+/// <summary>
+/// Represents a loaded eBPF tracer instance.
+/// </summary>
 class TracerInstance : IDisposable
 {
     public string Name { get; set; } = string.Empty;

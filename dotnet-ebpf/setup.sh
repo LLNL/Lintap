@@ -23,7 +23,7 @@ apt-get install -y \
     libbpf-dev \
     libbpf1 \
     linux-headers-$(uname -r) \
-    bpftool \
+    linux-tools-common \
     make
 
 echo

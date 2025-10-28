@@ -1,16 +1,16 @@
-.PHONY: all clean
+.PHONY: all clean openat execve
 
 # Output files
-BPF_OBJ = openat_tracer.bpf.o
+OPENAT_BPF_OBJ = openat_tracer.bpf.o
+EXECVE_BPF_OBJ = execve_tracer.bpf.o
 VMLINUX = vmlinux.h
 
-all: $(BPF_OBJ)
+all: $(OPENAT_BPF_OBJ) $(EXECVE_BPF_OBJ)
 
-# Generate vmlinux.h with BTF information
-$(VMLINUX):
-	bpftool btf dump file /sys/kernel/btf/vmlinux format c > $(VMLINUX)
+openat: $(OPENAT_BPF_OBJ)
 
-# Compile eBPF program
+execve: $(EXECVE_BPF_OBJ)
+
 # Auto-detect architecture
 ARCH := $(shell uname -m)
 ifeq ($(ARCH),aarch64)
@@ -21,11 +21,23 @@ else
     TARGET_ARCH := $(ARCH)
 endif
 
-$(BPF_OBJ): openat_tracer.bpf.c
+# Generate vmlinux.h with BTF information
+$(VMLINUX):
+	bpftool btf dump file /sys/kernel/btf/vmlinux format c > $(VMLINUX)
+
+# Compile openat eBPF program
+$(OPENAT_BPF_OBJ): openat_tracer.bpf.c
 	clang -g -O2 -target bpf -D__TARGET_ARCH_$(TARGET_ARCH) \
 		-I/usr/include/bpf \
-		-c openat_tracer.bpf.c -o $(BPF_OBJ)
-	@echo "Compiled for architecture: $(TARGET_ARCH)"
+		-c openat_tracer.bpf.c -o $(OPENAT_BPF_OBJ)
+	@echo "Compiled openat tracer for architecture: $(TARGET_ARCH)"
+
+# Compile execve eBPF program
+$(EXECVE_BPF_OBJ): execve_tracer.bpf.c
+	clang -g -O2 -target bpf -D__TARGET_ARCH_$(TARGET_ARCH) \
+		-I/usr/include/bpf \
+		-c execve_tracer.bpf.c -o $(EXECVE_BPF_OBJ)
+	@echo "Compiled execve tracer for architecture: $(TARGET_ARCH)"
 
 clean:
-	rm -f $(BPF_OBJ) $(VMLINUX)
+	rm -f $(OPENAT_BPF_OBJ) $(EXECVE_BPF_OBJ) $(VMLINUX)

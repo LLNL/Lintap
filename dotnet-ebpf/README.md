@@ -53,7 +53,7 @@ sudo apt-get update
 
 # Install eBPF tools
 sudo apt-get install -y clang llvm libbpf-dev libbpf1 \
-    linux-headers-$(uname -r) bpftool make
+    linux-headers-$(uname -r) linux-tools-common make
 
 # Install .NET 8
 wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh

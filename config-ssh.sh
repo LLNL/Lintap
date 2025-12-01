@@ -17,7 +17,7 @@ fi
 # Push ssh key into lintap instance. Put in both root and ubuntu users
 sshkey=$(cat "$sshkey_file")
 echo $LINTAP_INSTANCE
-multipass exec $LINTAP_INSTANCE -- sh -c "echo '$sshkey' >> .ssh/authorized_keys"
+multipass exec $LINTAP_INSTANCE -- sh -c "echo '$sshkey' >> ~/.ssh/authorized_keys"
 multipass exec $LINTAP_INSTANCE -- sudo sh -c "echo '$sshkey' >> /root/.ssh/authorized_keys"
 
 # Get lintap instance IP

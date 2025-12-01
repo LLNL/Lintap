@@ -18,7 +18,11 @@ fi
 sshkey=$(cat "$sshkey_file")
 echo $LINTAP_INSTANCE
 multipass exec $LINTAP_INSTANCE -- sh -c "echo '$sshkey' >> ~/.ssh/authorized_keys"
-multipass exec $LINTAP_INSTANCE -- sudo sh -c "echo '$sshkey' >> /root/.ssh/authorized_keys"
+# Note: getting the shell escaping is painful, so switching methods to inject sshkey:
+multipass exec lintap-dev -- sudo tee -a /root/.ssh/authorized_keys <<EOF
+$sshkey
+EOF
+
 
 # Get lintap instance IP
 export LINTAP_IP=$(multipass info $LINTAP_INSTANCE --format json | jq -r ".info.\"$LINTAP_INSTANCE\".ipv4[0]")

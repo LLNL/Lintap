@@ -1,17 +1,12 @@
 #!/bin/bash
+set -e
 
 # Set Lintap instance name as environment variable
-export LINTAP_INSTANCE="lintap-dev"
+LINTAP_INSTANCE="${LINTAP_INSTANCE:-lintap-dev}"
 
 # Default SSH key file
 default_sshkey_file="$HOME/.ssh/id_ed25519.pub"
-
-# Check if an argument was provided for the SSH key file
-if [ $# -eq 1 ]; then
-    sshkey_file="$1"
-else
-    sshkey_file="$default_sshkey_file"
-fi
+sshkey_file="${LINTAP_SSHKEY:-$HOME/.ssh/id_ed25519.pub}"
 
 # Check if the SSH key file exists
 if [ ! -f "$sshkey_file" ]; then
@@ -19,9 +14,11 @@ if [ ! -f "$sshkey_file" ]; then
     exit 1
 fi
 
-# Push ssh key into lintap instance
+# Push ssh key into lintap instance. Put in both root and ubuntu users
 sshkey=$(cat "$sshkey_file")
+echo $LINTAP_INSTANCE
 multipass exec $LINTAP_INSTANCE -- sh -c "echo '$sshkey' >> .ssh/authorized_keys"
+multipass exec $LINTAP_INSTANCE -- sudo sh -c "echo '$sshkey' >> /root/.ssh/authorized_keys"
 
 # Get lintap instance IP
 export LINTAP_IP=$(multipass info $LINTAP_INSTANCE --format json | jq -r ".info.\"$LINTAP_INSTANCE\".ipv4[0]")

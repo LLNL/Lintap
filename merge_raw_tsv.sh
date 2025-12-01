@@ -71,7 +71,7 @@ copy (
 }
 
 # Process by event type
-for EVENT in raw_process raw_thread
+for EVENT in raw_process raw_thread raw_memory
 do
     echo `date` $EVENT
     if [ -d "$tsv_source/$EVENT" ]; then

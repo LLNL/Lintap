@@ -4,13 +4,21 @@
 
 Lintap is a proof-of-concept host-based event sensor for Linux that implements Wintap-like functionality for Linux environments. It collects system telemetry data and transforms it into the semantic Wintap data model for analysis.
 
-## Project Overview
+Lintap now has 2 parallel implementations:
+
+* Lintap (TeleTap-based) is the new version using eBPF for telemetry and tightly coupled with TeleTap, which is the `dotnet core` used by Wintap. This version is still in its infancy as we get the core components running and working together. The code for this version has all been moved into the Wintap repository. There is still some initial code for post-processing data in this repository as we sort things out.
+
+[Running Lintap](teletap/README.md)
+
+* Lintap (sysdig) is the original and extremely simple implementation built using `sysdig` for telemetry. This implementation will continue to be useful as a very simple, flexible playground for testing ideas and morphing to new challenges and goals very quickly. However, it isn't really intended for larger deployments or long-term collects.
+
+## Running Lintap (sysdig)
 
 The first phase of this project focuses on proving that we can collect the necessary telemetry data and transform it into the Wintap data model. To achieve this quickly and simply, we're following this approach:
 
 ### 1. Collect Event-Based Telemetry from eBPF
 
-We're using `sysdig` as our primary data collection tool because it's robust, simple, and extensible with LUA. Sysdig runs continuously, writing TSV files of events for processes, files, and network activity.
+We're using `sysdig` as our primary data collection tool because it's robust, simple, and extensible with LUA. Sysdig runs continuously, writing TSV files of events for processes, files, and network activity. While it uses a combination of sources, which may or may not include eBPF depending on the sysdig version and OS, it proves the point of getting high-volume, low-level telemetry.
 
 We've also added experimental support for collecting and processing SELinux activity using auditd. SELinux features are optional.
 
@@ -34,6 +42,12 @@ The existing pipeline ingests the raw Wintap format data and produces silver and
 ## Quick Start
 
 ### Installing
+
+#### Ubuntu with Multipass
+
+The fastest and easiest way to get up and running is using [Multipass](https://canonical.com/multipass). This method leverages Multipass to install and manage a local Ubuntu VM. We provide a script that will buildout the environment and be ready to use.
+
+[Detailed Instructions][Multipass.md]
 
 #### Sysdig
 
@@ -104,10 +118,8 @@ _Note: Base file path for data files is defined in a macro `dp()` in the rawtost
 
 1. `rawtostdview.sql` - Process and file events
 2. `lintap-pci.sql` - Network events
-2. `selinux.sql` - SELinux data
-3. `~/git/foraker-support/foraker-everest/ontology/duckdb/everest-lintap-ddl.sql` - Creates Files and All_Files tables for Lintap data
-4. `selinux-everest.sql` - Adds SELinux data to Files and All_Files tables
-5. `Everest-network.sql` - Processes network data
+3. `selinux.sql` - SELinux data
+4. `~/git/foraker-support/foraker-everest/ontology/duckdb/everest-lintap-ddl.sql` - Creates Files and All_Files tables for Lintap data
 
 ## Data File Layout
 
@@ -136,3 +148,5 @@ Contributions to Lintap are welcome! Please feel free to submit pull requests or
 ## License
 
 LLNL-CODE-837816
+
+[Multipass.md]: Multipass.md

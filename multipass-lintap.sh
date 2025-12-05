@@ -167,8 +167,7 @@ runcmd:
   # Install DuckDB CLI. The default installer detects the right OS/arch, but installs only for the current user. Sigh.
   - |
     set -x
-    curl https://install.duckdb.org | sh
-    cp ~/.duckdb/cli/latest/duckdb /usr/local/bin/duckdb
+    sudo -u ubuntu -H bash -c 'curl -L https://install.duckdb.org | bash; sudo cp /home/ubuntu/.duckdb/cli/latest/duckdb /usr/local/bin/duckdb'
     
 final_message: "LinTap dev environment is ready! Connect with: multipass shell ${INSTANCE_NAME}"
 EOF

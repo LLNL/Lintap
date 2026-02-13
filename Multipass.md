@@ -1,7 +1,7 @@
 # Building a Lintap-ready Ubuntu
 These instructions cover building an Ubuntu VM on your local system that is usable for either the dotnet or sysdig based implementations.
 
-The basic premise is to use your local disk for and system as much as possible, and the Ubuntu instance to run the sensor and collect data.
+The basic premise is to use your local disk and system as much as possible, and the Ubuntu instance to run the sensor and collect data.
 
 ## Pre-requisites
 * Install and run [Multipass](https://canonical.com/multipass) with a default image.

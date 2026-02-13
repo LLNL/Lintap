@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set output path: use first argument if provided, otherwise default to ~/data/lintap/lintap-dev
-output_path="${1:-$HOME/data/lintap/lintap-dev}"
+output_path="${1:-$HOME/data/lintap/lintap-dev/pidstat}"
 
 # Create the output directory if it doesn't exist
 mkdir -p "$output_path"

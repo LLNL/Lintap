@@ -21,7 +21,7 @@ SELECT
     CAST("cswch/s" AS REAL) AS context_switch_per_sec,
     CAST("nvcswch/s" AS REAL) AS nonvoluntary_context_switch_per_sec,
     Command AS command
-FROM read_csv(dp('../pidstat/*.tsv'),
+FROM read_csv(dp('../pidstat/*.csv'),
     delim = '\t',
     header = false,
     auto_detect = false,

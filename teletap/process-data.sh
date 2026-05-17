@@ -24,7 +24,7 @@ if [ "$OVERWRITE" = true ]; then
 fi
 
 # Move from merged dir to raw_sensor: separated, hive partitioned and renamed.
-python ./mergedtoraw.py -s ~/data/lintap/lintap-dev
+uv run python ./mergedtoraw.py -s ~/data/lintap/lintap-dev
 
 # Build the duckdb command
 DUCKDB_CMD='duckdb --cmd ".read initdb.sql" --cmd ".read load-data.sql" --cmd ".read load-pidstat.sql" --cmd ".read summary_ddl.sql" --cmd ".read summary.sql"'

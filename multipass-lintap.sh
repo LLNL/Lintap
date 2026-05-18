@@ -1,4 +1,6 @@
 #!/bin/bash
+
+# Build a base Ubuntu image suitable for running Lintap sensor experiments using any of: Lintap (eBPF), Sysdig or Tetragon
 set -e
 
 # Configuration file location

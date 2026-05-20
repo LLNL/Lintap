@@ -7,68 +7,95 @@
 - eBPF Tools
 - DotNet 8.0 Core
 - Python
-- DuckDB for data processing
+- DuckDB for local TeleTap summaries
 - Git repos for: Wintap and Lintap
 
 ## Ubuntu with Multipass
 
-The fastest and easiest way to get up and running is using [Multipass](https://canonical.com/multipass). This method leverages Multipass to install and manage a local Ubuntu VM. We provide a script that will buildout the environment and be ready to use.
+The fastest and easiest way to get up and running is using [Multipass](https://canonical.com/multipass). This method leverages Multipass to install and manage a local Ubuntu VM. We provide a script that will build out the environment and be ready to use.
 
 * Get multipass itself running: [Multipass](https://canonical.com/multipass)
 * Build the Lintap-ready-instance: [Detailed Instructions](../Multipass.md)
 
 ### Build Commands
+
 ```sh
 cd ~ubuntu/git/Wintap/wintap/platform/linux/sensor/ebpf/tracers/
 make clean
 make all
 make test
 cd ~ubuntu/git/Wintap/wintap/
-dotnet build Lintap.csproj 
-dotnet run --project Lintap.csproj 
+dotnet build Lintap.csproj
+dotnet run --project Lintap.csproj
 ```
 
-### Load Data
-_Note: major changes are coming for how TeleTap writes files which will simplify this step._
+### Data output
 
-#### Gather up data
-* `scp -rp @lintap-dev:/var/log/lintap/parquet/\* ~/data/lintap/lintap-dev/`
-* `mkdir ~/data/lintap/lintap-dev/pidstat`
-* `cp ~/git/Lintap/mydata.tsv ~/data/lintap/lintap-dev/pidstat/`
+New Lintap/Wintap output should already include canonical raw sensor parquet:
 
-#### Convert to normalized name and tree structure
+```text
+<dataset>/raw_sensor/<event>/dayPK=YYYYMMDD/hourPK=HH/<file>.parquet
+<dataset>/raw_sensor/raw_process_conn_incr/dayPK=YYYYMMDD/hourPK=HH/protoPK=tcp|udp/<file>.parquet
+```
+
+The old `merged -> raw_sensor` conversion step has been removed. `mergedtoraw.py` is no longer part of the workflow.
+
+### Full ETL with DBT
+
+The canonical full ETL is in `Wintap-PyUtil/wintap_dbt`, not in this TeleTap directory.
+
+Example:
+
 ```sh
-python mergedtoraw -s ~/data/lintap/lintap-dev
+cd ~/git/Wintap-PyUtil
+
+WINTAP_DBT_DATABASE=/tmp/lintap.duckdb \
+DBT_VARS='{dataset: /path/to/parquet, start_day: 20260520, end_day: 20260520}' \
+make dbt-build
 ```
 
-This should create a new dir `~/data/lintap/lintap-dev/raw_sensor` with subdirs for each event type.
+### Local TeleTap sanity check
+
+The TeleTap scripts are a small development scaffold for loading a subset of raw data plus pidstat metrics into DuckDB and visualizing simple counts/resource usage.
+
+#### Gather data
+
+Example shape:
+
+```sh
+mkdir -p ~/data/lintap/lintap-dev/pidstat
+cp ~/git/Lintap/mydata.tsv ~/data/lintap/lintap-dev/pidstat/
+# Copy or collect raw_sensor under ~/data/lintap/lintap-dev/raw_sensor
+```
 
 #### Load into DuckDB
-* `cd teletap`
-* `./process-data [sample.db]`
-  * Copies parquet files from `merged` into `raw_sensor` and partitions by event type and time.
-  * Runs a set of SQL files to load data, including `pidstat`, into database
-  * Displays a simple summary of data to confirm it worked
 
-#### Visualize 
-Run a simple streamlit app to visualize the host resource data and simple telemetry info. The intent is 
-to use this to start to understand what was collected and how much resource was used to get it.
+```sh
+cd ~/git/Lintap/teletap
+./process-data.sh [sample.db]
+```
 
-* `streamlit run grokdata.py`
+This runs SQL files to load a small subset of raw data, including `pidstat`, into a local database and displays a simple summary.
 
-Be amazed by the app created using Grok. Basically, it should show time-series of some very basic telemetry such as: CPU/Mem use and Process/File/Network event counts.
+#### Visualize
+
+```sh
+streamlit run grokdata.py
+```
+
+The app shows simple time-series such as CPU/memory use and Process/File/Network event counts.
 
 #### Dev Tools
 
-VS Code should be able to just connect using the remote-ssh connection. Just open a workspace on the Wintap or Lintap repo.
-To get all of the appropriate plugins installed:
+VS Code should be able to connect using remote SSH. Open a workspace on the Wintap or Lintap repo.
 
-~Note: run the shell as a terminal window from VS Code. I had trouble with `code` not being in the path when just ssh'd in.
+Note: run the shell as a terminal window from VS Code. There were issues with `code` not being in the path when just SSH'd in.
+
 ```sh
 cd ~ubuntu/git/Lintap/teletap
 cat vscode-remote-extensions.txt | xargs -n 1 code --install-extension
 ```
 
 #### Now the real work...
-This scaffolding is all to support ongoing development and debugging of the sensor itself. 
 
+This scaffolding supports ongoing development and debugging of the sensor itself. Use the DBT pipeline in `Wintap-PyUtil` for full post-processing.

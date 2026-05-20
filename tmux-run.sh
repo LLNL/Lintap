@@ -17,7 +17,7 @@ tmux new-session -d -s $SESSION
 tmux split-window -v -t $SESSION
 
 # Pane 1: Run the .NET project (sudo required, from the other projects dir)
-tmux send-keys -t $SESSION:0.0 "sudo dotnet run --project $WINTAP_HOME/Lintap.csproj" C-m
+tmux send-keys -t $SESSION:0.0 "sudo WINTAP_DATA_ROOT=/home/ubuntu/data/debug dotnet run --project $WINTAP_HOME/Lintap.csproj" C-m
 
 # Pane 2: Run the collector
 tmux send-keys -t $SESSION:0.1 "./pidstat-collect.sh" C-m

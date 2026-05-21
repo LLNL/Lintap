@@ -86,8 +86,10 @@ This runs SQL files to load a small subset of raw data, including `pidstat`, int
 #### Visualize
 
 ```sh
-streamlit run grokdata.py
+uv run marimo run grokdata_marimo.py
 ```
+
+The Marimo notebook locates the database from `TELETAP_DATABASE`, `WINTAP_TELETAP_DATABASE`, `WINTAP_DBT_DATABASE`, or `$WINTAP_DATA_ROOT/duckdb/wintap.duckdb`. The legacy Streamlit app is still available with `streamlit run grokdata.py`.
 
 The app shows simple time-series such as CPU/memory use and Process/File/Network event counts.
 

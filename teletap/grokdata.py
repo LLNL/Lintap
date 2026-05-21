@@ -1,6 +1,7 @@
 # app.py  ←  The One That Just Works™ (2025–2030 edition)
 import streamlit as st
 import duckdb
+import os
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -9,7 +10,7 @@ st.set_page_config(page_title="TeleTap Metrics Coordinated Zoom", layout="wide")
 st.title("TeleTap Metrics – Coordinated Zoom")
 
 # Load data
-con = duckdb.connect("sample.db", read_only=True)
+con = duckdb.connect(f'{os.environ.get("WINTAP_DATA_ROOT")}/duckdb/wintap.duckdb', read_only=True)
 df = con.execute("""
 select pf.*, procs:p.num_rows, file:f.num_rows, net:n.num_rows
 from perf_chart pf

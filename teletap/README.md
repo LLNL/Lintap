@@ -63,15 +63,21 @@ The TeleTap scripts are a small development scaffold for loading a subset of raw
 Example shape:
 
 ```sh
-mkdir -p ~/data/lintap/lintap-dev/pidstat
-cp ~/git/Lintap/mydata.tsv ~/data/lintap/lintap-dev/pidstat/
-# Copy or collect raw_sensor under ~/data/lintap/lintap-dev/raw_sensor
+export WINTAP_DATA_ROOT=~/data/lintap/lintap-dev
+export PIDSTAT_DATA_PATH=$WINTAP_DATA_ROOT/pidstat
+mkdir -p "$PIDSTAT_DATA_PATH"
+cp ~/git/Lintap/mydata.tsv "$PIDSTAT_DATA_PATH/"
+# Copy or collect raw_sensor under $WINTAP_DATA_ROOT/parquet/raw_sensor
 ```
+
+`WINTAP_RAW_SENSOR_ROOT` can be set instead of `WINTAP_DATA_ROOT` when raw parquet lives somewhere other than `$WINTAP_DATA_ROOT/parquet/raw_sensor`.
 
 #### Load into DuckDB
 
 ```sh
 cd ~/git/Lintap/teletap
+export WINTAP_DATA_ROOT=~/data/lintap/lintap-dev
+export PIDSTAT_DATA_PATH=$WINTAP_DATA_ROOT/pidstat
 ./process-data.sh [sample.db]
 ```
 

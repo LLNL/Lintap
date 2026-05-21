@@ -4,7 +4,7 @@
 
 WINTAP_HOME="${WINTAP_HOME:-$HOME/git/wintap/wintap}"
 WINTAP_DATA_ROOT="${WINTAP_DATA_ROOT:-/home/ubuntu/data/debug}"
-PIDSTAT_OUTPUT_PATH="${PIDSTAT_OUTPUT_PATH:-$WINTAP_DATA_ROOT/pidstat}"
+PIDSTAT_DATA_PATH="${PIDSTAT_DATA_PATH:-${PIDSTAT_OUTPUT_PATH:-$WINTAP_DATA_ROOT/pidstat}}"
 
 # Name of the tmux session
 SESSION="${SESSION:-lintap_dev}"
@@ -22,7 +22,7 @@ tmux split-window -v -t $SESSION
 tmux send-keys -t "$SESSION:0.0" "sudo WINTAP_DATA_ROOT='$WINTAP_DATA_ROOT' dotnet run --project '$WINTAP_HOME/Lintap.csproj'" C-m
 
 # Pane 2: Run the collector into the same run root.
-tmux send-keys -t "$SESSION:0.1" "./pidstat-collect.sh '$PIDSTAT_OUTPUT_PATH'" C-m
+tmux send-keys -t "$SESSION:0.1" "PIDSTAT_DATA_PATH='$PIDSTAT_DATA_PATH' ./pidstat-collect.sh" C-m
 
 # Attach to the session
 tmux attach-session -t $SESSION

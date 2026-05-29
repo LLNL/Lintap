@@ -1,0 +1,12 @@
+ms-python.python
+ms-python.vscode-pylance
+ms-python.debugpy
+ms-toolsai.jupyter
+ms-python.isort
+ms-python.black-formatter
+ms-dotnettools.csdevkit
+ms-dotnettools.csharp
+eamodio.gitlens
+gruntfuggly.todo-tree
+usernamehw.errorlens
+oderwat.indent-rainbow

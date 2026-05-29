@@ -33,3 +33,5 @@ Thumbs.db
 
 # Local data directory
 data/
+multipass-config.env
+teletap/sample.db

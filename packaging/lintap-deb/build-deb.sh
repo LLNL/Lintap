@@ -163,7 +163,8 @@ if [[ -z "$RUNTIME" ]]; then
 fi
 
 case "$DEB_ARCH:$RUNTIME" in
-  amd64:linux-x64) EBPF_TARGET_ARCH=x86_64 ;;
+  # The eBPF build uses __TARGET_ARCH_x86 (not x86_64).
+  amd64:linux-x64) EBPF_TARGET_ARCH=x86 ;;
   arm64:linux-arm64) EBPF_TARGET_ARCH=arm64 ;;
   *)
     echo "ERROR: Debian arch '$DEB_ARCH' and .NET runtime '$RUNTIME' are not a supported pair" >&2
@@ -198,7 +199,15 @@ fi
 mkdir -p "$OUTPUT_ROOT" "$PUBLISH_DIR" "$DEBIAN_DIR"
 
 echo "==> Building eBPF tracers ($EBPF_TARGET_ARCH)"
-make -C "$EBPF_DIR" clean all TARGET_ARCH="$EBPF_TARGET_ARCH"
+ebpf_make_args=(clean all TARGET_ARCH="$EBPF_TARGET_ARCH")
+host_arch=$(uname -m)
+if [[ "$DEB_ARCH" == amd64 && "$host_arch" != x86_64 ]]; then
+  ebpf_make_args+=(VMLINUX_BTF=/__lintap_crossbuild_no_btf__)
+fi
+if [[ "$DEB_ARCH" == arm64 && "$host_arch" != aarch64 ]]; then
+  ebpf_make_args+=(VMLINUX_BTF=/__lintap_crossbuild_no_btf__)
+fi
+make -C "$EBPF_DIR" "${ebpf_make_args[@]}"
 
 DOTNET_DEPENDS=""
 if [[ "$SELF_CONTAINED" != true ]]; then

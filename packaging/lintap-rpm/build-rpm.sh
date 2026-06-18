@@ -14,6 +14,7 @@ Options:
   --runtime RID           .NET runtime identifier. Default: linux-x64
   --arch ARCH             Target RPM architecture. Default: x86_64
   --project-dir DIR       Lintap .NET project directory. Default: auto-detect
+  --skip-mcp              Do not publish/package the MCP server helper
   --framework-dependent   Publish framework-dependent and require aspnetcore-runtime-8.0
   --configuration CONFIG  dotnet publish configuration. Default: Release
   --no-restore            Pass --no-restore to dotnet publish
@@ -25,7 +26,7 @@ Options:
 
 Environment overrides:
   LINTAP_VERSION, LINTAP_RELEASE, LINTAP_RUNTIME, LINTAP_ARCH,
-  LINTAP_PROJECT_DIR, LINTAP_SELF_CONTAINED=true|false, LINTAP_OUTPUT_DIR,
+  LINTAP_PROJECT_DIR, LINTAP_SELF_CONTAINED=true|false, LINTAP_SKIP_MCP=true|false, LINTAP_OUTPUT_DIR,
   LINTAP_RPM_WORK_ROOT, LINTAP_CONFIGURATION, LINTAP_NO_RESTORE=true|false,
   LINTAP_EXISTING_PUBLISH_DIR
 USAGE
@@ -45,6 +46,7 @@ HOST_ARCH=${LINTAP_HOST_ARCH:-}
 SELF_CONTAINED=${LINTAP_SELF_CONTAINED:-true}
 CONFIGURATION=${LINTAP_CONFIGURATION:-Release}
 NO_RESTORE=${LINTAP_NO_RESTORE:-false}
+SKIP_MCP=${LINTAP_SKIP_MCP:-false}
 EXISTING_PUBLISH_DIR=${LINTAP_EXISTING_PUBLISH_DIR:-}
 PROJECT_DIR=${LINTAP_PROJECT_DIR:-}
 CLEAN=true
@@ -73,6 +75,10 @@ while [[ $# -gt 0 ]]; do
     --project-dir)
       PROJECT_DIR=${2:?--project-dir requires a value}
       shift 2
+      ;;
+    --skip-mcp)
+      SKIP_MCP=true
+      shift
       ;;
     --host-arch)
       HOST_ARCH=${2:?--host-arch requires a value}
@@ -168,7 +174,8 @@ if [[ -z "$HOST_ARCH" ]]; then
 fi
 
 case "$RPM_ARCH:$RUNTIME" in
-  x86_64:linux-x64) EBPF_TARGET_ARCH=x86_64 ;;
+  # The eBPF build uses __TARGET_ARCH_x86 (not x86_64).
+  x86_64:linux-x64) EBPF_TARGET_ARCH=x86 ;;
   *)
     echo "ERROR: this RPM builder currently targets RHEL 8 x86_64 only" >&2
     echo "       supported pair: x86_64/linux-x64" >&2
@@ -222,7 +229,13 @@ echo "==> RPM output root: $OUTPUT_ROOT"
 echo "==> Native work root: $WORK_ROOT"
 
 echo "==> Building eBPF tracers ($EBPF_TARGET_ARCH)"
-make -C "$EBPF_DIR" clean all TARGET_ARCH="$EBPF_TARGET_ARCH"
+ebpf_make_args=(clean all TARGET_ARCH="$EBPF_TARGET_ARCH")
+if [[ "$HOST_ARCH" != "$RPM_ARCH" ]]; then
+  # Cross-build note: CO-RE objects require a vmlinux.h matching the *target* kernel/arch.
+  # When cross-building, force tracepoint-only objects by disabling BTF/vmlinux.h generation.
+  ebpf_make_args+=(VMLINUX_BTF=/__lintap_crossbuild_no_btf__)
+fi
+make -C "$EBPF_DIR" "${ebpf_make_args[@]}"
 
 DOTNET_REQUIRES=""
 if [[ "$SELF_CONTAINED" != true ]]; then
@@ -262,24 +275,35 @@ else
   fi
   DISABLE_MCP=true dotnet "${publish_args[@]}"
 
-  if [[ -f "$MCP_PROJECT" ]]; then
+  if [[ "$SKIP_MCP" != true && -f "$MCP_PROJECT" ]]; then
     echo "==> Publishing MCP server separately ($RUNTIME)"
     rm -rf "$MCP_PUBLISH_ROOT"
     mkdir -p "$MCP_PUBLISH_ROOT" "$PUBLISH_DIR/mcp"
-    dotnet publish "$MCP_PROJECT" \
-      -c "$CONFIGURATION" \
-      -r "$RUNTIME" \
-      --self-contained true \
-      -p:PublishSingleFile=true \
-      -p:PublishReadyToRun=false \
-      -p:UseAppHost=true \
-      -p:GenerateAssemblyInfo=false \
-      -p:GenerateTargetFrameworkAttribute=false \
-      -p:BaseIntermediateOutputPath="$MCP_PUBLISH_ROOT/obj/" \
-      -p:BaseOutputPath="$MCP_PUBLISH_ROOT/bin/" \
+    mcp_publish_args=(
+      publish "$MCP_PROJECT"
+      -c "$CONFIGURATION"
+      -r "$RUNTIME"
+      --self-contained true
+      -p:PublishSingleFile=true
+      -p:PublishReadyToRun=false
+      -p:UseAppHost=true
+      -p:GenerateAssemblyInfo=false
+      -p:GenerateTargetFrameworkAttribute=false
+      -p:BaseIntermediateOutputPath="$MCP_PUBLISH_ROOT/obj/"
+      -p:BaseOutputPath="$MCP_PUBLISH_ROOT/bin/"
       -o "$MCP_PUBLISH_ROOT"
+    )
+    if [[ "$NO_RESTORE" == true ]]; then
+      mcp_publish_args+=(--no-restore)
+    fi
+    dotnet "${mcp_publish_args[@]}"
     cp -R "$MCP_PUBLISH_ROOT"/. "$PUBLISH_DIR/mcp/"
   fi
+fi
+
+if [[ "$SKIP_MCP" == true ]]; then
+  # Ensure we don't accidentally package stale MCP artifacts from a prior build.
+  rm -rf "$PUBLISH_DIR/mcp" "$PUBLISH_DIR/mcp_temp"
 fi
 
 # Keep development --publish-dir inputs suitable for packaging.
@@ -358,11 +382,12 @@ assert_exists /etc/lintap/lintap.env
 
 expected_bpf_objects=(
   clone_tracer.bpf.o
-  execve_tracer.bpf.o
-  exit_tracer.bpf.o
   file_ops_tracer.bpf.o
-  network_ops_tracer.bpf.o
   openat_tracer.bpf.o
+  execve_tracepoint.bpf.o
+  exit_tracepoint.bpf.o
+  network_tracepoint.bpf.o
+  file_ops_tracepoint.bpf.o
 )
 for bpf_object in "${expected_bpf_objects[@]}"; do
   assert_exists "/usr/lib/lintap/tracers/$bpf_object"
@@ -462,7 +487,11 @@ rpmbuild \
   --target "$RPM_ARCH" \
   -bb "$SPEC_FILE"
 
-RPM_FILE=$(find "$OUTPUT_ROOT" -maxdepth 2 -type f -name "${PACKAGE_NAME}-${VERSION}-*.${RPM_ARCH}.rpm" -print -quit)
+RPM_FILE=$(find "$OUTPUT_ROOT" -maxdepth 2 -type f -name "${PACKAGE_NAME}-${VERSION}-${RELEASE}.${RPM_ARCH}.rpm" -print -quit)
+if [[ -z "${RPM_FILE:-}" ]]; then
+  # Fall back to first match if the expected filename differs.
+  RPM_FILE=$(find "$OUTPUT_ROOT" -maxdepth 2 -type f -name "${PACKAGE_NAME}-${VERSION}-*.${RPM_ARCH}.rpm" -print -quit)
+fi
 echo "==> Package built: ${RPM_FILE:-$OUTPUT_ROOT/$RPM_ARCH}"
 echo "==> Inspect with: rpm -qpi '<rpm>' && rpm -qpl '<rpm>'"
 if [[ -n "$RPM_FILE" ]] && command -v rpm >/dev/null 2>&1; then

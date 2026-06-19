@@ -8,10 +8,13 @@ This document is the handoff for moving from the current cross-build/development
 
 1. RPM installs via `dnf` successfully.
 1. `libbpf` is present on the target and the service starts.
-1. Esper logs warnings about duplicate EPL context name ("Every10Seconds"), currently treated as non-blocking.
-1. Network telemetry is spotty: only `TcpIpDisconnect`, `UdpIpSend`, `UdpIpRecv` seen; most `IpAddr` values missing.
-1. Process telemetry not deeply reviewed.
+1. Esper EPL context is deployed once; duplicate context warnings are no longer expected.
+1. Network telemetry is flowing with populated tuples:
+   - TCP: `TcpIpConnect`, `TcpIpSend`, `TcpIpRecv`, `TcpIpDisconnect`
+   - UDP: `UdpIpSend`, `UdpIpRecv` (recv peer tuple fixed; see known issues)
+1. Process telemetry is present and generally well-formed (PidHash populated).
 1. File events are plentiful and look reasonable.
+1. Runtime config from `/etc/lintap/lintap.env` is honored (env overrides packaged ETLConfig).
 
 ### What Changed In Packaging Since Yesterday
 
@@ -132,13 +135,13 @@ If you still see `Unable to load shared library 'libbpf.so.1'` on RHEL8, that in
 
 #### C. EPL duplicate context warnings
 
-Current known warning:
+Previously observed warning:
 
 ```text
 Context by name 'Every10Seconds' already exists
 ```
 
-Status: not treated as a blocker; track if it correlates with missing event types.
+Status: expected to be resolved; if it reappears, treat it as a regression.
 
 #### D. Data outputs
 
@@ -153,17 +156,16 @@ sudo find /tmp/lintap-data -maxdepth 4 -type f | sort | tail -n 100 || true
 
 #### 1) Network data is spotty (missing most IpAddr values)
 
-Symptoms observed:
+Previous symptoms observed:
 
-1. Only `TcpIpDisconnect`, `UdpIpSend`, `UdpIpRecv` show up.
-1. Many records missing `IpAddr` values.
+1. TCP connect/send/recv/disconnect were incomplete or missing.
+1. UDP recv peer tuple could be missing (remote 0).
 
-Likely causes to check on the real RHEL8 target:
+Likely causes (and fixes applied during RHEL8 bring-up):
 
-1. eBPF attachment type mismatch: CO-RE vs tracepoint fallback differences (some fields may not be populated in fallback paths).
-1. Kernel support/permissions: verify required tracepoints/kprobes are present and attach succeeds (libbpf errors in logs).
-1. Network tracer object used: ensure the runtime is loading the intended object file.
-   - If `network_ops_tracer.bpf.o` fails and only `network_tracepoint.bpf.o` is used, expect less context.
+1. Incomplete program attachment: `network_ops_tracer.bpf.o` contains multiple programs; relying on program-name strings is brittle (name truncation). The NetworkSensor now attaches all programs in the object.
+1. UDP recv tuple extraction: for `recvfrom`/`recvmsg`, emit on `udp_recvmsg` return and read the peer sockaddr written into user memory; avoid emitting partial rows from syscall tracepoints.
+1. TCP lifecycle events: emit `TcpIpConnect` from successful `tcp_*_connect` returns and `TcpIpDisconnect` from `tcp_close`.
 
 Suggested next checks:
 
@@ -174,6 +176,16 @@ sudo bpftool link list | grep -i wintap || true
 ```
 
 If the target has BTF (`/sys/kernel/btf/vmlinux` exists), prefer packaging CO-RE objects for that target and validate that `network_ops_tracer.bpf.o` loads successfully.
+
+Additional quick validation of TCP event coverage:
+
+```sh
+# raw_sensor (canonical partition layout)
+sudo find /var/log/lintap/parquet/raw_sensor/raw_process_conn_incr -type f -name '*raw_tcp_process_conn_incr*.parquet' | tail -n 3
+
+# serializer parquet (Esper -> parquet)
+ls -lt /var/log/lintap/parquet/tcpconnectionserializer | head
+```
 
 #### 2) Process telemetry review
 

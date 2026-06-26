@@ -34,7 +34,7 @@ If `dotnet-sdk-8.0` is unavailable, configure the Microsoft RHEL package reposit
 From the mounted or cloned LLNL repo root:
 
 ```sh
-Lintap/packaging/lintap-rpm/build-rpm.sh \
+bash Lintap/packaging/lintap-rpm/build-rpm.sh \
   --version 0.1.0 \
   --release 1.el8
 ```
@@ -52,7 +52,7 @@ The final RPM is written under `artifacts/lintap-rpm`, but build intermediates, 
 To build the same RHEL 8 `x86_64` RPM from a non-x86 host, such as Fedora `aarch64`, keep the target architecture and .NET runtime explicit:
 
 ```sh
-Lintap/packaging/lintap-rpm/build-rpm.sh \
+bash Lintap/packaging/lintap-rpm/build-rpm.sh \
   --version 0.1.0 \
   --release 1.el8 \
   --arch x86_64 \
@@ -68,7 +68,7 @@ The RPM build disables ReadyToRun publishing because crossgen is expensive and u
 If NuGet access is unavailable, package an existing build output as a framework-dependent smoke-test package:
 
 ```sh
-Lintap/packaging/lintap-rpm/build-rpm.sh \
+bash Lintap/packaging/lintap-rpm/build-rpm.sh \
   --version 0.1.0 \
   --release 1.el8 \
   --framework-dependent \

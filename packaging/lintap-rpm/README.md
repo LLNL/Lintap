@@ -9,8 +9,10 @@ The RPM layout intentionally matches the Ubuntu package layout where possible.
 Build on a RHEL 8 compatible `x86_64` host with the .NET 8 SDK and eBPF tooling installed:
 
 ```sh
-Lintap/packaging/lintap-rpm/build-rpm.sh --version 0.1.0 --release 1.el8
+bash Lintap/packaging/lintap-rpm/build-rpm.sh --version 0.1.0 --release 1.el8
 ```
+
+Note: if `build-rpm.sh` is not marked executable in your checkout, invoking via `bash ...` avoids a `Permission denied` failure.
 
 The default build is self-contained .NET for `linux-x64`. Output is written under:
 
@@ -31,7 +33,7 @@ This avoids .NET apphost mmap failures and runtime-codegen issues when the sourc
 The script can also produce the `x86_64` RPM from a non-x86 host, such as a Fedora `aarch64` VM, because `rpmbuild` only packages the staged payload and the script builds the eBPF objects with `TARGET_ARCH=x86_64`.
 
 ```sh
-Lintap/packaging/lintap-rpm/build-rpm.sh \
+bash Lintap/packaging/lintap-rpm/build-rpm.sh \
   --version 0.1.0 \
   --release 1.el8 \
   --arch x86_64 \
@@ -50,7 +52,7 @@ Cross-build requirements:
 If NuGet access is unavailable, package an existing build output as a framework-dependent smoke-test package:
 
 ```sh
-Lintap/packaging/lintap-rpm/build-rpm.sh \
+bash Lintap/packaging/lintap-rpm/build-rpm.sh \
   --version 0.1.0 \
   --release 1.el8 \
   --framework-dependent \

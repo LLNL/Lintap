@@ -1,6 +1,6 @@
 ## Lintap RHEL 8 RPM Migration Handoff
 
-Last updated: 2026-06-18
+Last updated: 2026-06-20
 
 This document is the handoff for moving from the current cross-build/development workflow to building and validating the Lintap RPM on a real RHEL 8 `x86_64` system.
 
@@ -12,8 +12,8 @@ This document is the handoff for moving from the current cross-build/development
 1. Network telemetry is flowing with populated tuples:
    - TCP: `TcpIpConnect`, `TcpIpSend`, `TcpIpRecv`, `TcpIpDisconnect`
    - UDP: `UdpIpSend`, `UdpIpRecv` (recv peer tuple fixed; see known issues)
-1. Process telemetry is present and generally well-formed (PidHash populated).
-1. File events are plentiful and look reasonable.
+1. Process telemetry is present (PidHash populated), but there are known parent attribution inconsistencies in some process start rows; treat process smoke failures as a known issue for now.
+1. File events are plentiful. High-volume pseudo-path noise (`/sys`, `/proc`, `/dev`) has been filtered at the FileOps sensor to protect pipeline health, with periodic counters emitted to logs.
 1. Runtime config from `/etc/lintap/lintap.env` is honored (env overrides packaged ETLConfig).
 
 ### What Changed In Packaging Since Yesterday
@@ -56,7 +56,7 @@ If building with `--skip-mcp`, validate the RPM does not contain `/usr/lib/linta
 From the repo root on the RHEL8 `x86_64` build host:
 
 ```sh
-Lintap/packaging/lintap-rpm/build-rpm.sh \
+bash Lintap/packaging/lintap-rpm/build-rpm.sh \
   --version 0.1.0 \
   --release 1.el8 \
   --arch x86_64 \
@@ -66,7 +66,7 @@ Lintap/packaging/lintap-rpm/build-rpm.sh \
 If NuGet access is not available on the build host:
 
 ```sh
-Lintap/packaging/lintap-rpm/build-rpm.sh \
+bash Lintap/packaging/lintap-rpm/build-rpm.sh \
   --version 0.1.0 \
   --release 1.el8 \
   --arch x86_64 \
@@ -152,6 +152,8 @@ sudo find /var/log/lintap -maxdepth 4 -type f | sort | tail -n 100
 sudo find /tmp/lintap-data -maxdepth 4 -type f | sort | tail -n 100 || true
 ```
 
+Note: On this deployment, the highest-signal runtime log is typically `/var/log/lintap/Logs/Lintap.log`. `journalctl -u lintap` can be sparse.
+
 ### Known Issues / Investigation Threads
 
 #### 1) Network data is spotty (missing most IpAddr values)
@@ -196,7 +198,7 @@ Not yet deeply validated in the last deploy. Recommended minimum checks:
 
 #### 3) File events
 
-Currently: plentiful and appear reasonable.
+Currently: plentiful. Pseudo-filesystem paths (`/sys`, `/proc`, `/dev`) are filtered in `FileOpsSensor` to reduce noise and prevent serializer starvation; the sensor logs per-minute drop counters.
 
 ### Recommended Next Steps (Sequenced)
 

@@ -1,0 +1,24 @@
+[Unit]
+Description=Lintap Linux Sensor
+Documentation=file:/usr/share/doc/lintap/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=notify
+EnvironmentFile=-/etc/lintap/lintap.env
+WorkingDirectory=/usr/lib/lintap
+ExecStart=/usr/lib/lintap/Lintap
+Restart=on-failure
+RestartSec=5s
+User=root
+Group=root
+
+# Lintap loads eBPF programs and reads process/network telemetry. Keep the
+# first package permissive; tighten after validating the exact kernel/libbpf
+# requirements for each supported RHEL release.
+NoNewPrivileges=false
+LimitMEMLOCK=infinity
+
+[Install]
+WantedBy=multi-user.target

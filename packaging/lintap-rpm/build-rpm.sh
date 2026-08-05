@@ -37,7 +37,7 @@ REPO_ROOT=$(cd -- "$SCRIPT_DIR/../../.." && pwd)
 
 PACKAGE_NAME=lintap
 SUMMARY="Lintap Linux sensor"
-LICENSE="Proprietary"
+LICENSE="MIT License"
 URL="https://github.com/LLNL/Wintap"
 RELEASE=${LINTAP_RELEASE:-'1.el8'}
 RPM_ARCH=${LINTAP_ARCH:-x86_64}

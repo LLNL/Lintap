@@ -47,7 +47,7 @@ The existing pipeline ingests the raw Wintap format data and produces silver and
 
 The fastest and easiest way to get up and running is using [Multipass](https://canonical.com/multipass). This method leverages Multipass to install and manage a local Ubuntu VM. We provide a script that will buildout the environment and be ready to use.
 
-[Detailed Instructions][Multipass.md]
+[Detailed Instructions](Multipass.md)
 
 #### Sysdig
 

@@ -20,11 +20,11 @@ The fastest and easiest way to get up and running is using [Multipass](https://c
 ### Build Commands
 
 ```sh
-cd ~ubuntu/git/Wintap/wintap/platform/linux/sensor/ebpf/tracers/
+cd /home/ubuntu/git/wintap/wintap/platform/linux/sensor/ebpf/tracers/
 make clean
 make all
 make test
-cd ~ubuntu/git/Wintap/wintap/
+cd /home/ubuntu/git/wintap/wintap/
 dotnet build Lintap.csproj
 dotnet run --project Lintap.csproj
 ```
@@ -66,7 +66,7 @@ Example shape:
 export WINTAP_DATA_ROOT=~/data/lintap/lintap-dev
 export PIDSTAT_DATA_PATH=$WINTAP_DATA_ROOT/pidstat
 mkdir -p "$PIDSTAT_DATA_PATH"
-cp ~/git/Lintap/mydata.tsv "$PIDSTAT_DATA_PATH/"
+cp /home/ubuntu/git/Lintap/mydata.tsv "$PIDSTAT_DATA_PATH/"
 # Copy or collect raw_sensor under $WINTAP_DATA_ROOT/parquet/raw_sensor
 ```
 
@@ -75,7 +75,7 @@ cp ~/git/Lintap/mydata.tsv "$PIDSTAT_DATA_PATH/"
 #### Load into DuckDB
 
 ```sh
-cd ~/git/Lintap/teletap
+cd /home/ubuntu/git/Lintap/teletap
 export WINTAP_DATA_ROOT=~/data/lintap/lintap-dev
 export PIDSTAT_DATA_PATH=$WINTAP_DATA_ROOT/pidstat
 ./process-data.sh [sample.db]
@@ -100,7 +100,7 @@ VS Code should be able to connect using remote SSH. Open a workspace on the Wint
 Note: run the shell as a terminal window from VS Code. There were issues with `code` not being in the path when just SSH'd in.
 
 ```sh
-cd ~ubuntu/git/Lintap/teletap
+cd /home/ubuntu/git/Lintap/teletap
 cat vscode-remote-extensions.txt | xargs -n 1 code --install-extension
 ```
 

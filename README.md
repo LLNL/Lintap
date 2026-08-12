@@ -38,8 +38,44 @@ The existing pipeline ingests the raw Wintap format data and produces silver and
 - Sufficient disk space for data collection
 - Python 3.6+ for processing scripts
 - DuckDB for data processing
+- `pidstat` from `sysstat` for the managed pidstat collector
 
 ## Quick Start
+
+### Managed pidstat collector
+
+`pidstat-collect.sh` remains the simple example collector. For long-running
+host monitoring, use `pidstat-collector.sh` instead.
+
+The managed collector:
+
+- samples `pidstat` every 5 seconds by default
+- writes typed parquet under
+  `$WINTAP_DATA_ROOT/parquet/raw_sensor/pidstat/dayPK=YYYYMMDD/hourPK=HH/`
+- rotates on `PIDSTAT_ROTATE_INTERVAL_SEC` (default `300`, matching
+  `WINTAP_ETL_UPLOAD_INTERVAL_SEC` when set)
+- keeps the active spool outside `raw_sensor/` so only completed parquet files
+  are visible to the uploader sweep
+
+Example:
+
+```bash
+WINTAP_DATA_ROOT=/var/lib/lintap ./pidstat-collector.sh
+```
+
+Useful environment variables:
+
+- `PIDSTAT_INTERVAL_SEC`
+- `PIDSTAT_ROTATE_INTERVAL_SEC`
+- `PIDSTAT_MAX_UNSHIPPED_BYTES`
+- `PIDSTAT_MAX_UNSHIPPED_AGE_SEC`
+- `PIDSTAT_PARQUET_COMPRESSION`
+
+Run the collector tests with:
+
+```bash
+./tests/pidstat-collector-tests.sh
+```
 
 ### Installing
 

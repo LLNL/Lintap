@@ -99,28 +99,41 @@ The package installs:
 
 ```text
 /usr/lib/lintap/                 published Lintap app
+/usr/lib/lintap/pidstat-collector.py  managed pidstat collector
+/usr/lib/lintap/pidstat-collector-launch.sh
+/usr/lib/lintap/pidstat-collector-bootstrap.sh
 /usr/lib/lintap/tracers/*.bpf.o  eBPF tracer objects
 /usr/bin/lintap                  launcher for /usr/lib/lintap/Lintap
 /etc/lintap/lintap.env           systemd environment overrides
 /var/log/lintap/                 default data root
 /usr/lib/systemd/system/lintap.service
+/usr/lib/systemd/system/lintap-pidstat.service
 ```
 
 By default, `/etc/lintap/lintap.env` sets:
 
 ```text
 WINTAP_DATA_ROOT=/var/log/lintap
+PIDSTAT_INTERVAL_SEC=5
+PIDSTAT_ROTATE_INTERVAL_SEC=300
+PIDSTAT_VENV_DIR=/opt/lintap/pidstat-collector/.venv
+PIDSTAT_BOOTSTRAP_PYTHON=3.12
 ```
 
-Lintap logs are expected under `/var/log/lintap/Logs`, and parquet/raw sensor output under `/var/log/lintap/parquet`.
+Lintap logs are expected under `/var/log/lintap/Logs`, parquet/raw sensor output under `/var/log/lintap/parquet`, and the pidstat collector keeps its active spool under `/var/log/lintap/pidstat-spool`.
+
+The pidstat service runs as root for full `/proc` visibility, but it no longer
+pins a host Python path. Instead, bootstrap a dedicated `uv`-managed venv and
+the service launches `pidstat-collector.py` from that venv.
 
 ## Install and run
 
 ```sh
 sudo apt install ./artifacts/lintap-deb/lintap_*_amd64.deb
-sudo systemctl start lintap
-sudo systemctl status lintap
-sudo journalctl -u lintap -f
+sudo bash /usr/lib/lintap/pidstat-collector-bootstrap.sh
+sudo systemctl start lintap lintap-pidstat
+sudo systemctl status lintap lintap-pidstat
+sudo journalctl -u lintap-pidstat -f
 ```
 
 The package enables the service on install but does not start it automatically.

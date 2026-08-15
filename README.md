@@ -36,7 +36,7 @@ The existing pipeline ingests the raw Wintap format data and produces silver and
 
 - Linux system with root access
 - Sufficient disk space for data collection
-- Python 3.6+ for processing scripts
+- `uv` plus any host Python 3.11+ for the managed pidstat collector
 - DuckDB for data processing
 - `pidstat` from `sysstat` for the managed pidstat collector
 
@@ -45,22 +45,25 @@ The existing pipeline ingests the raw Wintap format data and produces silver and
 ### Managed pidstat collector
 
 `pidstat-collect.sh` remains the simple example collector. For long-running
-host monitoring, use `pidstat-collector.sh` instead.
+host monitoring, use `pidstat-collector.py` instead.
 
 The managed collector:
 
-- samples `pidstat` every 5 seconds by default
+- samples `/proc` every 5 seconds by default, with no steady-state child
+  processes
 - writes typed parquet under
   `$WINTAP_DATA_ROOT/parquet/raw_sensor/pidstat/dayPK=YYYYMMDD/hourPK=HH/`
 - rotates on `PIDSTAT_ROTATE_INTERVAL_SEC` (default `300`, matching
   `WINTAP_ETL_UPLOAD_INTERVAL_SEC` when set)
 - keeps the active spool outside `raw_sensor/` so only completed parquet files
   are visible to the uploader sweep
+- adds `hostname`, `cgroup_path`, `pid_ns_inode`, `container_runtime`, and
+  `container_id` columns to each parquet row
 
 Example:
 
 ```bash
-WINTAP_DATA_ROOT=/var/lib/lintap ./pidstat-collector.sh
+UV_PROJECT_ENVIRONMENT=/tmp/lintap-venv uv run python ./pidstat-collector.py
 ```
 
 Useful environment variables:
@@ -70,11 +73,28 @@ Useful environment variables:
 - `PIDSTAT_MAX_UNSHIPPED_BYTES`
 - `PIDSTAT_MAX_UNSHIPPED_AGE_SEC`
 - `PIDSTAT_PARQUET_COMPRESSION`
+- `PIDSTAT_HOSTNAME`
+- `PIDSTAT_VENV_DIR`
+- `PIDSTAT_PYTHON`
+- `PIDSTAT_BOOTSTRAP_PYTHON`
 
-Run the collector tests with:
+`PIDSTAT_BOOTSTRAP_PYTHON` defaults to `3.12`, which keeps the venv inside the
+collector's supported `3.11 <= python < 3.13` range while still letting `uv`
+download or locate the interpreter for you.
+
+For packaged hosts, bootstrap a dedicated collector venv once with `uv`, then
+let systemd run from that venv:
 
 ```bash
-./tests/pidstat-collector-tests.sh
+sudo PIDSTAT_VENV_DIR=/opt/lintap/pidstat-collector/.venv bash ./pidstat-collector-bootstrap.sh
+sudo systemctl start lintap-pidstat
+```
+
+Run the collector tests with `uv` from a native filesystem path for the virtual
+environment. On shared mounts such as Multipass, point the venv at `/tmp`:
+
+```bash
+UV_PROJECT_ENVIRONMENT=/tmp/lintap-venv uv run --group dev pytest tests/test_pidstat_collector.py
 ```
 
 ### Installing

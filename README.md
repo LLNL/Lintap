@@ -55,6 +55,10 @@ The managed collector:
   `$WINTAP_DATA_ROOT/parquet/raw_sensor/pidstat/dayPK=YYYYMMDD/hourPK=HH/`
 - rotates on `PIDSTAT_ROTATE_INTERVAL_SEC` (default `300`, matching
   `WINTAP_ETL_UPLOAD_INTERVAL_SEC` when set)
+- clamps rotation to `PIDSTAT_MIN_ROTATE_INTERVAL_SEC` (default `300`) to
+  avoid frequent DuckDB parquet conversions becoming observable process noise
+- uses a persistent DuckDB connection with `PIDSTAT_DUCKDB_THREADS` (default
+  `1`) for conversion, reducing short-lived DuckDB worker-thread churn
 - keeps the active spool outside `raw_sensor/` so only completed parquet files
   are visible to the uploader sweep
 - adds `hostname`, `cgroup_path`, `pid_ns_inode`, `container_runtime`, and
@@ -70,6 +74,8 @@ Useful environment variables:
 
 - `PIDSTAT_INTERVAL_SEC`
 - `PIDSTAT_ROTATE_INTERVAL_SEC`
+- `PIDSTAT_MIN_ROTATE_INTERVAL_SEC`
+- `PIDSTAT_DUCKDB_THREADS`
 - `PIDSTAT_MAX_UNSHIPPED_BYTES`
 - `PIDSTAT_MAX_UNSHIPPED_AGE_SEC`
 - `PIDSTAT_PARQUET_COMPRESSION`

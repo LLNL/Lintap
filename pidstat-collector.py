@@ -241,9 +241,11 @@ class Config:
     data_root: Path
     interval_sec: int
     rotate_interval_sec: int
+    min_rotate_interval_sec: int
     parquet_root: Path
     spool_dir: Path
     parquet_compression: str
+    duckdb_threads: int
     max_unshipped_bytes: int
     max_unshipped_age_sec: int
     hostname: str
@@ -263,8 +265,22 @@ class Config:
             os.environ.get("PIDSTAT_ROTATE_INTERVAL_SEC", os.environ.get("WINTAP_ETL_UPLOAD_INTERVAL_SEC", "300")),
             "PIDSTAT_ROTATE_INTERVAL_SEC",
         )
+        min_rotate_interval_sec = parse_positive_int(
+            os.environ.get("PIDSTAT_MIN_ROTATE_INTERVAL_SEC", "300"),
+            "PIDSTAT_MIN_ROTATE_INTERVAL_SEC",
+        )
+        if rotate_interval_sec < min_rotate_interval_sec:
+            log(
+                "WARN: PIDSTAT_ROTATE_INTERVAL_SEC="
+                f"{rotate_interval_sec}s is below PIDSTAT_MIN_ROTATE_INTERVAL_SEC="
+                f"{min_rotate_interval_sec}s; using {min_rotate_interval_sec}s. "
+                "Short rotation intervals amplify DuckDB conversion thread churn "
+                "and Lintap process-event noise."
+            )
+            rotate_interval_sec = min_rotate_interval_sec
         parquet_root = Path(os.environ.get("PIDSTAT_PARQUET_ROOT", str(data_root / "parquet")))
         spool_dir = Path(os.environ.get("PIDSTAT_SPOOL_DIR", str(data_root / "pidstat-spool")))
+        duckdb_threads = parse_positive_int(os.environ.get("PIDSTAT_DUCKDB_THREADS", "1"), "PIDSTAT_DUCKDB_THREADS")
         max_unshipped_bytes = parse_nonnegative_int(
             os.environ.get("PIDSTAT_MAX_UNSHIPPED_BYTES", "1073741824"),
             "PIDSTAT_MAX_UNSHIPPED_BYTES",
@@ -280,9 +296,11 @@ class Config:
             data_root=data_root,
             interval_sec=interval_sec,
             rotate_interval_sec=rotate_interval_sec,
+            min_rotate_interval_sec=min_rotate_interval_sec,
             parquet_root=parquet_root,
             spool_dir=spool_dir,
             parquet_compression=parquet_compression,
+            duckdb_threads=duckdb_threads,
             max_unshipped_bytes=max_unshipped_bytes,
             max_unshipped_age_sec=max_unshipped_age_sec,
             hostname=hostname,
@@ -615,6 +633,18 @@ class Collector:
         self.config = config
         self.sampler = sampler or ProcSampler(hostname=config.hostname)
         self.stop_event = threading.Event()
+        self._duckdb_connection = None
+
+    def close(self) -> None:
+        if self._duckdb_connection is not None:
+            self._duckdb_connection.close()
+            self._duckdb_connection = None
+
+    def duckdb_connection(self):
+        if self._duckdb_connection is None:
+            self._duckdb_connection = duckdb.connect(config={"threads": str(self.config.duckdb_threads)})
+            self._duckdb_connection.execute(f"SET threads TO {self.config.duckdb_threads}")
+        return self._duckdb_connection
 
     def current_spool_path(self) -> Path:
         return self.config.spool_dir / "current.tsv"
@@ -802,11 +832,7 @@ COPY (
 """
 
         try:
-            connection = duckdb.connect()
-            try:
-                connection.execute(sql)
-            finally:
-                connection.close()
+            self.duckdb_connection().execute(sql)
             os.replace(temp_destination, destination)
             spool_path.unlink(missing_ok=True)
             meta_path.unlink(missing_ok=True)
@@ -871,23 +897,28 @@ COPY (
             "starting pidstat-collector.py: "
             f"interval={self.config.interval_sec}s "
             f"rotate={self.config.rotate_interval_sec}s "
+            f"min_rotate={self.config.min_rotate_interval_sec}s "
+            f"duckdb_threads={self.config.duckdb_threads} "
             f"parquet_root={self.config.parquet_root}"
         )
-        self.salvage_spool_files()
+        try:
+            self.salvage_spool_files()
 
-        while not self.stop_event.is_set():
-            loop_started = time.time()
-            rows = self.sampler.sample(loop_started)
-            if rows:
-                self.rotate_current_window_if_needed(int(loop_started))
-                self.append_rows(rows)
-            sleep_remaining = self.config.interval_sec - (time.time() - loop_started)
-            if sleep_remaining > 0:
-                self.stop_event.wait(sleep_remaining)
+            while not self.stop_event.is_set():
+                loop_started = time.time()
+                rows = self.sampler.sample(loop_started)
+                if rows:
+                    self.rotate_current_window_if_needed(int(loop_started))
+                    self.append_rows(rows)
+                sleep_remaining = self.config.interval_sec - (time.time() - loop_started)
+                if sleep_remaining > 0:
+                    self.stop_event.wait(sleep_remaining)
 
-        log("received shutdown signal; sealing current pidstat spool")
-        self.seal_current_spool()
-        self.process_pending_spools()
+            log("received shutdown signal; sealing current pidstat spool")
+            self.seal_current_spool()
+            self.process_pending_spools()
+        finally:
+            self.close()
 
 
 def build_arg_parser() -> argparse.ArgumentParser:

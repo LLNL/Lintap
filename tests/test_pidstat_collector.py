@@ -39,7 +39,9 @@ def collector_env(tmp_path, monkeypatch):
     monkeypatch.setenv("PIDSTAT_HOSTNAME", "testhost")
     monkeypatch.setenv("PIDSTAT_INTERVAL_SEC", "1")
     monkeypatch.setenv("PIDSTAT_ROTATE_INTERVAL_SEC", "300")
+    monkeypatch.setenv("PIDSTAT_MIN_ROTATE_INTERVAL_SEC", "1")
     monkeypatch.setenv("PIDSTAT_PARQUET_COMPRESSION", "ZSTD")
+    monkeypatch.setenv("PIDSTAT_DUCKDB_THREADS", "1")
     monkeypatch.setenv("PIDSTAT_MAX_UNSHIPPED_BYTES", "0")
     monkeypatch.setenv("PIDSTAT_MAX_UNSHIPPED_AGE_SEC", "0")
     return pidstat_collector.Config.from_env()
@@ -108,6 +110,24 @@ def test_oracle_parser_keeps_valid_leading_record_on_malformed_tail():
     assert rows[0].pid == 1391556
 
 
+def test_short_rotation_is_clamped_by_default(tmp_path, monkeypatch):
+    data_root = tmp_path / "data"
+    monkeypatch.setenv("WINTAP_DATA_ROOT", str(data_root))
+    monkeypatch.setenv("PIDSTAT_ROTATE_INTERVAL_SEC", "10")
+    monkeypatch.delenv("PIDSTAT_MIN_ROTATE_INTERVAL_SEC", raising=False)
+    config = pidstat_collector.Config.from_env()
+    assert config.rotate_interval_sec == 300
+
+
+def test_short_rotation_can_be_explicitly_allowed(tmp_path, monkeypatch):
+    data_root = tmp_path / "data"
+    monkeypatch.setenv("WINTAP_DATA_ROOT", str(data_root))
+    monkeypatch.setenv("PIDSTAT_ROTATE_INTERVAL_SEC", "10")
+    monkeypatch.setenv("PIDSTAT_MIN_ROTATE_INTERVAL_SEC", "1")
+    config = pidstat_collector.Config.from_env()
+    assert config.rotate_interval_sec == 10
+
+
 def test_convert_spool_to_partitioned_parquet(collector_env):
     collector = pidstat_collector.Collector(collector_env, sampler=FakeSampler([]))
     pending_spool = collector.config.spool_dir / "pending-1754985000-1-1.tsv"
@@ -171,9 +191,11 @@ def test_byte_cap_drops_oldest_files(collector_env):
         data_root=collector.config.data_root,
         interval_sec=collector.config.interval_sec,
         rotate_interval_sec=collector.config.rotate_interval_sec,
+        min_rotate_interval_sec=collector.config.min_rotate_interval_sec,
         parquet_root=collector.config.parquet_root,
         spool_dir=collector.config.spool_dir,
         parquet_compression=collector.config.parquet_compression,
+        duckdb_threads=collector.config.duckdb_threads,
         max_unshipped_bytes=100,
         max_unshipped_age_sec=collector.config.max_unshipped_age_sec,
         hostname=collector.config.hostname,
@@ -198,9 +220,11 @@ def test_age_cap_drops_stale_files(collector_env):
         data_root=collector.config.data_root,
         interval_sec=collector.config.interval_sec,
         rotate_interval_sec=collector.config.rotate_interval_sec,
+        min_rotate_interval_sec=collector.config.min_rotate_interval_sec,
         parquet_root=collector.config.parquet_root,
         spool_dir=collector.config.spool_dir,
         parquet_compression=collector.config.parquet_compression,
+        duckdb_threads=collector.config.duckdb_threads,
         max_unshipped_bytes=collector.config.max_unshipped_bytes,
         max_unshipped_age_sec=60,
         hostname=collector.config.hostname,

@@ -330,7 +330,11 @@ mkdir -p \
 
 cp -R "$PUBLISH_DIR"/. "$PKG_ROOT/usr/lib/lintap/"
 install -m 0644 "$SCRIPT_DIR/lintap.service" "$PKG_ROOT/usr/lib/systemd/system/lintap.service"
+install -m 0644 "$SCRIPT_DIR/lintap-pidstat.service" "$PKG_ROOT/usr/lib/systemd/system/lintap-pidstat.service"
 install -m 0644 "$SCRIPT_DIR/lintap.env" "$PKG_ROOT/etc/lintap/lintap.env"
+install -m 0755 "$SCRIPT_DIR/../../pidstat-collector.py" "$PKG_ROOT/usr/lib/lintap/pidstat-collector.py"
+install -m 0755 "$SCRIPT_DIR/../../pidstat-collector-launch.sh" "$PKG_ROOT/usr/lib/lintap/pidstat-collector-launch.sh"
+install -m 0755 "$SCRIPT_DIR/../../pidstat-collector-bootstrap.sh" "$PKG_ROOT/usr/lib/lintap/pidstat-collector-bootstrap.sh"
 cat > "$PKG_ROOT/usr/bin/lintap" <<'EOF'
 #!/bin/sh
 exec /usr/lib/lintap/Lintap "$@"
@@ -378,7 +382,11 @@ if [[ ! -x "$PKG_ROOT/usr/bin/lintap" ]]; then
   exit 1
 fi
 assert_exists /usr/lib/systemd/system/lintap.service
+assert_exists /usr/lib/systemd/system/lintap-pidstat.service
 assert_exists /etc/lintap/lintap.env
+assert_exists /usr/lib/lintap/pidstat-collector.py
+assert_exists /usr/lib/lintap/pidstat-collector-launch.sh
+assert_exists /usr/lib/lintap/pidstat-collector-bootstrap.sh
 
 expected_bpf_objects=(
   clone_tracer.bpf.o
@@ -450,14 +458,17 @@ chmod 0750 /var/log/lintap /var/log/lintap/Logs /var/log/lintap/parquet
 if command -v systemctl >/dev/null 2>&1; then
     systemctl daemon-reload || true
     systemctl enable lintap.service >/dev/null 2>&1 || true
+    systemctl enable lintap-pidstat.service >/dev/null 2>&1 || true
 fi
-echo "Lintap installed. Review /etc/lintap/lintap.env, then start with: sudo systemctl start lintap"
+echo "Lintap installed. Review /etc/lintap/lintap.env, run: sudo bash /usr/lib/lintap/pidstat-collector-bootstrap.sh, then start with: sudo systemctl start lintap lintap-pidstat"
 
 %preun
 if [ \$1 -eq 0 ]; then
     if command -v systemctl >/dev/null 2>&1; then
         systemctl stop lintap.service >/dev/null 2>&1 || true
         systemctl disable lintap.service >/dev/null 2>&1 || true
+        systemctl stop lintap-pidstat.service >/dev/null 2>&1 || true
+        systemctl disable lintap-pidstat.service >/dev/null 2>&1 || true
     fi
 fi
 
@@ -471,6 +482,7 @@ fi
 /usr/bin/lintap
 /usr/lib/lintap
 /usr/lib/systemd/system/lintap.service
+/usr/lib/systemd/system/lintap-pidstat.service
 %dir /etc/lintap
 %config(noreplace) /etc/lintap/lintap.env
 %dir %attr(0750,root,root) /var/log/lintap

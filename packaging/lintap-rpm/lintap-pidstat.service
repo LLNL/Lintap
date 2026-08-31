@@ -1,0 +1,18 @@
+[Unit]
+Description=Lintap pidstat Collector
+Documentation=file:/usr/share/doc/lintap/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/lintap/lintap.env
+WorkingDirectory=/usr/lib/lintap
+ExecStart=/bin/bash /usr/lib/lintap/pidstat-collector-launch.sh
+Restart=always
+RestartSec=5s
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

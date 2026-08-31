@@ -63,6 +63,10 @@ The managed collector:
   are visible to the uploader sweep
 - adds `hostname`, `cgroup_path`, `pid_ns_inode`, `container_runtime`, and
   `container_id` columns to each parquet row
+- records `cpu_percent` as **core-summed process CPU percent**: `100` means one
+  fully occupied logical CPU and values can exceed `100` on multicore hosts.
+  Divide by the host's logical CPU count to compare with host-normalized runtime
+  counters such as `.NET System.Runtime cpu-usage`.
 
 Example:
 

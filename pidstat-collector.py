@@ -65,6 +65,10 @@ TSV_COLUMNS = (
     "container_id",
 )
 
+# cpu_percent is retained for raw pidstat compatibility. It is process CPU
+# summed across cores: 100 means one fully occupied logical CPU and values can
+# exceed 100 on multicore hosts.
+
 
 def log(message: str) -> None:
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
